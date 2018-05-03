@@ -142,14 +142,18 @@ public class IdeaPlugin extends IdePlugin {
 
     private void configureIdeaWorkspace(final Project project) {
         if (isRoot()) {
-            GenerateIdeaWorkspace task = project.getTasks().create("ideaWorkspace", GenerateIdeaWorkspace.class);
-            task.setDescription("Generates an IDEA workspace file (IWS)");
-            IdeaWorkspace workspace = new IdeaWorkspace();
-            workspace.setIws(new XmlFileContentMerger(task.getXmlTransformer()));
-            task.setWorkspace(workspace);
-            ideaModel.setWorkspace(task.getWorkspace());
-            task.setOutputFile(new File(project.getProjectDir(), project.getName() + ".iws"));
-            addWorker(task, false);
+            final IdeaWorkspace workspace = new IdeaWorkspace();
+            project.getTasks().createLater("ideaWorkspace", GenerateIdeaWorkspace.class, new Action<GenerateIdeaWorkspace>() {
+                @Override
+                public void execute(GenerateIdeaWorkspace task) {
+                    task.setDescription("Generates an IDEA workspace file (IWS)");
+                    task.setWorkspace(workspace);
+                    task.setOutputFile(new File(project.getProjectDir(), project.getName() + ".iws"));
+                    addWorker(task, false);
+                }
+            });
+
+            ideaModel.setWorkspace(workspace);
         }
     }
 

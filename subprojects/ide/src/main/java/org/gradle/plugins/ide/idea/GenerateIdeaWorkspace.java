@@ -16,6 +16,7 @@
 package org.gradle.plugins.ide.idea;
 
 import org.gradle.api.tasks.Internal;
+import org.gradle.plugins.ide.api.XmlFileContentMerger;
 import org.gradle.plugins.ide.api.XmlGeneratorTask;
 import org.gradle.plugins.ide.idea.model.IdeaWorkspace;
 import org.gradle.plugins.ide.idea.model.Workspace;
@@ -47,6 +48,6 @@ public class GenerateIdeaWorkspace extends XmlGeneratorTask<Workspace> {
 
     public void setWorkspace(IdeaWorkspace workspace) {
         this.workspace = workspace;
+        workspace.setIws(new XmlFileContentMerger(getXmlTransformer()));
     }
-
 }
