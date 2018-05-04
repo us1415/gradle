@@ -515,8 +515,15 @@ public class DefaultTaskContainer extends DefaultTaskCollection<Task> implements
         }
 
         @Override
-        public void configure(final Action<? super Task> action) {
-            configureLater(name, action);
+        public void configure(final Action<? super T> action) {
+            configureEachLater(new Action<Task>() {
+                @Override
+                public void execute(Task task) {
+                    if (task.getName().equals(name)) {
+                        action.execute((T)task);
+                    }
+                }
+            });
         }
     }
 

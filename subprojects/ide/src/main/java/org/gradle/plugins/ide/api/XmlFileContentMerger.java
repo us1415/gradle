@@ -19,6 +19,8 @@ import groovy.lang.Closure;
 import org.gradle.api.Action;
 import org.gradle.api.Incubating;
 import org.gradle.api.XmlProvider;
+import org.gradle.api.internal.provider.Providers;
+import org.gradle.api.provider.Provider;
 import org.gradle.internal.xml.XmlTransformer;
 
 /**
@@ -31,13 +33,22 @@ import org.gradle.internal.xml.XmlTransformer;
 public class XmlFileContentMerger extends FileContentMerger {
 
     private XmlTransformer xmlTransformer;
+    private final Provider<XmlTransformer> xmlTransformerProvider;
 
     public XmlFileContentMerger(XmlTransformer xmlTransformer) {
+        this(Providers.<XmlTransformer>notDefined());
         this.xmlTransformer = xmlTransformer;
     }
 
+    public XmlFileContentMerger(Provider<XmlTransformer> xmlTransformerProvider) {
+        this.xmlTransformerProvider = xmlTransformerProvider;
+    }
+
     public XmlTransformer getXmlTransformer() {
-        return xmlTransformer;
+        if (xmlTransformer != null) {
+            return xmlTransformer;
+        }
+        return xmlTransformerProvider.getOrNull();
     }
 
     public void setXmlTransformer(XmlTransformer xmlTransformer) {
@@ -55,7 +66,7 @@ public class XmlFileContentMerger extends FileContentMerger {
      * @param closure The closure to execute when the XML has been created.
      */
     public void withXml(Closure closure) {
-        xmlTransformer.addAction(closure);
+        getXmlTransformer().addAction(closure);
     }
 
     /**
@@ -67,6 +78,6 @@ public class XmlFileContentMerger extends FileContentMerger {
      */
     @Incubating
     public void withXml(Action<? super XmlProvider> action) {
-        xmlTransformer.addAction(action);
+        getXmlTransformer().addAction(action);
     }
 }
