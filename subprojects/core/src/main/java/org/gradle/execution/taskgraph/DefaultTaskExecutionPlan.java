@@ -551,7 +551,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
     @Override
     @Nullable
     public TaskInfo selectNextTask(WorkerLeaseRegistry.WorkerLease workerLease, ResourceLockState resourceLockState) {
-        if (allProjectsLocked()) {
+        if (allProjectsLocked() || !workerLease.tryLock()) {
             return null;
         }
 
@@ -562,9 +562,12 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
                 ResourceLock projectLock = getProjectLock(taskInfo);
                 TaskMutationInfo taskMutationInfo = getResolvedTaskMutationInfo(taskInfo);
 
+                if (!projectLock.tryLock()) {
+                    continue;
+                }
                 // TODO: convert output file checks to a resource lock
-                if (!projectLock.tryLock() || !workerLease.tryLock() || !canRunWithCurrentlyExecutedTasks(taskInfo, taskMutationInfo)) {
-                    resourceLockState.releaseLocks();
+                if (!canRunWithCurrentlyExecutedTasks(taskInfo, taskMutationInfo)) {
+                    projectLock.unlock();
                     continue;
                 }
 
