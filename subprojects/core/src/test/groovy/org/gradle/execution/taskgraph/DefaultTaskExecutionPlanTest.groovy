@@ -16,6 +16,7 @@
 
 package org.gradle.execution.taskgraph
 
+import org.gradle.api.Action
 import org.gradle.api.BuildCancelledException
 import org.gradle.api.CircularReferenceException
 import org.gradle.api.Task
@@ -31,7 +32,9 @@ import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.TaskDependency
 import org.gradle.api.tasks.TaskDestroyables
 import org.gradle.execution.TaskFailureHandler
+import org.gradle.initialization.BuildCancellationToken
 import org.gradle.internal.resources.ResourceLock
+import org.gradle.internal.resources.ResourceLockCoordinationService
 import org.gradle.internal.resources.ResourceLockState
 import org.gradle.internal.work.WorkerLeaseRegistry
 import org.gradle.internal.work.WorkerLeaseService
@@ -49,18 +52,24 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
 
     DefaultTaskExecutionPlan executionPlan
     ProjectInternal root
+    def cancellationHandler = Mock(BuildCancellationToken)
     def workerLeaseService = Mock(WorkerLeaseService)
+    def coordinationService = Mock(ResourceLockCoordinationService)
     def workerLease = Mock(WorkerLeaseRegistry.WorkerLease)
     def gradle = Mock(GradleInternal)
 
     def setup() {
         root = createRootProject(temporaryFolder.testDirectory)
-        executionPlan = new DefaultTaskExecutionPlan(workerLeaseService, Mock(GradleInternal))
+        executionPlan = new DefaultTaskExecutionPlan(cancellationHandler, coordinationService, workerLeaseService, Mock(GradleInternal))
         _ * workerLeaseService.getProjectLock(_, _) >> Mock(ResourceLock) {
             _ * isLocked() >> false
             _ * tryLock() >> true
         }
         _ * workerLease.tryLock() >> true
+        _ * coordinationService.withStateLock(_) >> { args ->
+            args[0].transform(Mock(ResourceLockState))
+            return true
+        }
     }
 
     def "schedules tasks in dependency order"() {
@@ -608,7 +617,7 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
         executedTasks == [a]
 
         when:
-        executionPlan.rethrowFailures()
+        executionPlan.awaitCompletion()
 
         then:
         RuntimeException e = thrown()
@@ -616,18 +625,18 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
     }
 
     def "stops returning tasks when build is cancelled"() {
+        2 * cancellationHandler.cancellationRequested >>> [false, true]
         Task a = task("a")
         Task b = task("b")
 
         when:
         addToGraphAndPopulate([a, b])
-        executionPlan.cancelExecution()
 
         then:
-        executedTasks == []
+        executedTasks == [a]
 
         when:
-        executionPlan.rethrowFailures()
+        executionPlan.awaitCompletion()
 
         then:
         BuildCancelledException e = thrown()
@@ -646,7 +655,7 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
         executedTasks == [a]
 
         when:
-        executionPlan.rethrowFailures()
+        executionPlan.awaitCompletion()
 
         then:
         RuntimeException e = thrown()
@@ -673,7 +682,7 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
         executedTasks == [a]
 
         when:
-        executionPlan.rethrowFailures()
+        executionPlan.awaitCompletion()
 
         then:
         RuntimeException e = thrown()
@@ -693,7 +702,7 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
         executedTasks == [a, b]
 
         when:
-        executionPlan.rethrowFailures()
+        executionPlan.awaitCompletion()
 
         then:
         RuntimeException e = thrown()
@@ -714,7 +723,7 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
         executedTasks == [a, b]
 
         when:
-        executionPlan.rethrowFailures()
+        executionPlan.awaitCompletion()
 
         then:
         RuntimeException e = thrown()
@@ -738,7 +747,7 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
         executedTasks == [a, c]
 
         when:
-        executionPlan.rethrowFailures()
+        executionPlan.awaitCompletion()
 
         then:
         RuntimeException e = thrown()
@@ -747,6 +756,10 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
 
     def "clear removes all tasks"() {
         given:
+        _ * coordinationService.withStateLock(_) >> { args ->
+            args[0].transform(Mock(ResourceLockState))
+            return true
+        }
         Task a = task("a")
 
         when:
@@ -760,6 +773,10 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
 
     def "can add additional tasks after execution and clear"() {
         given:
+        _ * coordinationService.withStateLock(_) >> { args ->
+            args[0].transform(Mock(ResourceLockState))
+            return true
+        }
         Task a = task("a")
         Task b = task("b")
 
@@ -879,14 +896,12 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
         def tasks = []
         def moreTasks = true
         while (moreTasks) {
-            def nextNode = executionPlan.selectNextTask(workerLease, Mock(ResourceLockState))
-            if (nextNode != null) {
-                if (!nextNode.isComplete()) {
-                    tasks << nextNode.task
-                    executionPlan.taskComplete(nextNode)
+            moreTasks = executionPlan.executeWithTask(workerLease, new Action<TaskInternal>() {
+                @Override
+                void execute(TaskInternal task) {
+                    tasks << task
                 }
-            }
-            moreTasks = executionPlan.hasWorkRemaining()
+            })
         }
         return tasks
     }

@@ -27,8 +27,7 @@ class RealLifeAndroidStudioMockupPerformanceTest extends AbstractAndroidStudioMo
 
         experiment(testProject) {
             minimumVersion = "4.3.1"
-            // FIXME wolfs: change target version back to 4.8-20180506235948+0000 when performance regression is fixed
-            targetVersions = ["4.8-20180509115935+0000"]
+            targetVersions = ["4.8-20180506235948+0000"]
             action('org.gradle.performance.android.SyncAction') {
                 jvmArguments = ["-Xms4g", "-Xmx4g"]
             }
@@ -45,8 +44,7 @@ class RealLifeAndroidStudioMockupPerformanceTest extends AbstractAndroidStudioMo
         where:
         testProject         | iterations
         "k9AndroidBuild"    | 200
-//        FIXME wolfs: re-enable the test as soon as the regression has been fixed
-//        "largeAndroidBuild" | 40
+        "largeAndroidBuild" | 40
     }
 
 }

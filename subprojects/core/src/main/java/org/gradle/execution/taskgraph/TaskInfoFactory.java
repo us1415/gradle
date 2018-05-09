@@ -37,7 +37,7 @@ public class TaskInfoFactory {
         return nodes.keySet();
     }
 
-    public TaskInfo getOrCreateNode(Task task) {
+    public TaskInfo createNode(Task task) {
         TaskInfo node = nodes.get(task);
         if (node == null) {
             if (task instanceof IncludedBuildTaskResource) {
