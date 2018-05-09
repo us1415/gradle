@@ -30,11 +30,17 @@ public class SelectedTaskExecutionAction implements BuildExecutionAction {
         GradleInternal gradle = context.getGradle();
         TaskGraphExecuter taskGraph = gradle.getTaskGraph();
         if (gradle.getStartParameter().isContinueOnFailure()) {
-            taskGraph.setContinueOnFailure(true);
+            taskGraph.useFailureHandler(new ContinueOnFailureHandler());
         }
 
         taskGraph.addTaskExecutionGraphListener(new BindAllReferencesOfProjectsToExecuteListener());
         taskGraph.execute();
+    }
+
+    private static class ContinueOnFailureHandler implements TaskFailureHandler {
+        public void onTaskFailure(Task task) {
+            // Do nothing
+        }
     }
 
     private static class BindAllReferencesOfProjectsToExecuteListener implements TaskExecutionGraphListener {
