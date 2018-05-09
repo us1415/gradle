@@ -28,7 +28,7 @@ import java.util.Set;
 public class SelectedTaskExecutionAction implements BuildExecutionAction {
     public void execute(BuildExecutionContext context) {
         GradleInternal gradle = context.getGradle();
-        TaskExecutionGraphInternal taskGraph = gradle.getTaskGraph();
+        TaskGraphExecuter taskGraph = gradle.getTaskGraph();
         if (gradle.getStartParameter().isContinueOnFailure()) {
             taskGraph.setContinueOnFailure(true);
         }

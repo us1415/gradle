@@ -25,7 +25,7 @@ import org.gradle.api.tasks.TaskCollection
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.TestFilter
 import org.gradle.execution.BuildExecutionContext
-import org.gradle.execution.TaskExecutionGraphInternal
+import org.gradle.execution.TaskGraphExecuter
 import org.gradle.tooling.internal.protocol.test.InternalJvmTestRequest
 import org.gradle.tooling.internal.provider.TestExecutionRequestAction
 import org.gradle.tooling.internal.provider.events.DefaultTestDescriptor
@@ -45,7 +45,7 @@ class TestExecutionBuildConfigurationActionTest extends Specification {
     TaskOutputsInternal outputsInternal
     GradleInternal gradleInternal
     BuildExecutionContext buildContext
-    TaskExecutionGraphInternal taskGraph
+    TaskGraphExecuter taskGraphExecuter
     TestExecutionRequestAction testExecutionRequest
 
     def setup() {
@@ -54,7 +54,7 @@ class TestExecutionBuildConfigurationActionTest extends Specification {
         gradleInternal = Mock()
         buildContext = Mock()
         tasksContainerInternal = Mock()
-        taskGraph = Mock()
+        taskGraphExecuter = Mock()
         testExecutionRequest = Mock()
         testTask = Mock()
         testFilter = Mock()
@@ -64,7 +64,7 @@ class TestExecutionBuildConfigurationActionTest extends Specification {
     }
 
     private void setupProject() {
-        1 * gradleInternal.getTaskGraph() >> taskGraph
+        1 * gradleInternal.getTaskGraph() >> taskGraphExecuter
         1 * buildContext.getGradle() >> gradleInternal
         _ * gradleInternal.getRootProject() >> projectInternal
     }
@@ -79,7 +79,7 @@ class TestExecutionBuildConfigurationActionTest extends Specification {
         buildConfigurationAction.configure(buildContext)
         then:
         0 * projectInternal.getAllprojects() >> [projectInternal]
-        _ * taskGraph.addTasks({ args -> assert args.size() == 0 })
+        _ * taskGraphExecuter.addTasks({ args -> assert args.size() == 0 })
     }
 
     @Unroll
