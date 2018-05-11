@@ -18,8 +18,6 @@ package org.gradle.initialization
 import org.gradle.StartParameter
 import org.gradle.api.artifacts.component.BuildIdentifier
 import org.gradle.api.internal.BuildDefinition
-import org.gradle.internal.build.NestedBuildState
-import org.gradle.internal.build.RootBuildState
 import org.gradle.internal.classpath.ClassPath
 import org.gradle.internal.event.ListenerManager
 import org.gradle.internal.logging.progress.ProgressLoggerFactory
@@ -68,7 +66,7 @@ class DefaultGradleLauncherFactoryTest extends Specification {
         requestContext.eventConsumer >> eventConsumer
 
         expect:
-        def launcher = factory.newInstance(BuildDefinition.fromStartParameter(startParameter), Stub(RootBuildState), requestContext, buildTreeServices)
+        def launcher = factory.newInstance(BuildDefinition.fromStartParameter(startParameter), Stub(BuildIdentifier), requestContext, buildTreeServices)
         launcher.gradle.parent == null
         launcher.gradle.startParameter == startParameter
         launcher.gradle.services.get(BuildRequestMetaData) == requestContext
@@ -77,13 +75,12 @@ class DefaultGradleLauncherFactoryTest extends Specification {
     }
 
     def "makes build definition services available as build scoped services"() {
+
         def identifier = Stub(BuildIdentifier)
-        def build = Stub(RootBuildState)
-        build.buildIdentifier >> identifier
         def buildDefinition = BuildDefinition.fromStartParameter(startParameter)
 
         expect:
-        def launcher = factory.newInstance(buildDefinition, build, requestContext, buildTreeServices)
+        def launcher = factory.newInstance(buildDefinition, identifier, requestContext, buildTreeServices)
         launcher.gradle.parent == null
         launcher.gradle.startParameter == startParameter
         launcher.gradle.services.get(BuildDefinition) == buildDefinition
@@ -98,11 +95,11 @@ class DefaultGradleLauncherFactoryTest extends Specification {
         requestContext.client >> clientMetaData
         requestContext.cancellationToken >> cancellationToken
 
-        def parent = factory.newInstance(BuildDefinition.fromStartParameter(startParameter), Stub(RootBuildState), requestContext, buildTreeServices)
+        def parent = factory.newInstance(BuildDefinition.fromStartParameter(startParameter), Stub(BuildIdentifier), requestContext, buildTreeServices)
         parent.buildListener.buildStarted(parent.gradle)
 
         expect:
-        def launcher = parent.gradle.services.get(NestedBuildFactory).nestedInstance(BuildDefinition.fromStartParameterForBuild(startParameter, tmpDir.file("nested"), Stub(PluginRequests)), Stub(NestedBuildState))
+        def launcher = parent.gradle.services.get(NestedBuildFactory).nestedInstance(BuildDefinition.fromStartParameterForBuild(startParameter, tmpDir.file("nested"), Stub(PluginRequests)), Stub(BuildIdentifier))
         launcher.gradle.parent == parent.gradle
 
         def request = launcher.gradle.services.get(BuildRequestMetaData)
