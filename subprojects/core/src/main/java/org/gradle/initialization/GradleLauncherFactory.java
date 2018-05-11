@@ -15,12 +15,13 @@
  */
 package org.gradle.initialization;
 
+import org.gradle.api.artifacts.component.BuildIdentifier;
 import org.gradle.api.internal.BuildDefinition;
-import org.gradle.internal.build.RootBuildState;
 import org.gradle.internal.service.ServiceRegistry;
 
 /**
- * <p>A {@code GradleLauncherFactory} is responsible for creating a {@link GradleLauncher} instance for a root build.
+ * <p>A {@code GradleLauncherFactory} is responsible for creating a {@link GradleLauncher} instance for a build, from a {@link
+ * org.gradle.StartParameter}.</p>
  *
  * Caller must call {@link GradleLauncher#stop()} when finished with the launcher.
  *
@@ -32,9 +33,9 @@ public interface GradleLauncherFactory {
      * Fails if a build is in progress.
      *
      * @param buildDefinition The settings for the build.
-     * @param build The build to create the {@link GradleLauncher} for.
+     * @param buildIdentifier The identity of the build.
      * @param requestContext The context in which the build is running.
-     * @param parentRegistry The parent service registry for this build.
+     * @param parent The parent service registry for this build.
      */
-    GradleLauncher newInstance(BuildDefinition buildDefinition, RootBuildState build, BuildRequestContext requestContext, ServiceRegistry parentRegistry);
+    GradleLauncher newInstance(BuildDefinition buildDefinition, BuildIdentifier buildIdentifier, BuildRequestContext requestContext, ServiceRegistry parent);
 }

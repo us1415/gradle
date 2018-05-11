@@ -37,20 +37,20 @@ class DefaultRootBuildState implements RootBuildState {
     private final BuildRequestContext requestContext;
     private final GradleLauncherFactory gradleLauncherFactory;
     private final ListenerManager listenerManager;
-    private final ServiceRegistry parentServices;
+    private final ServiceRegistry services;
     private SettingsInternal settings;
 
-    DefaultRootBuildState(BuildDefinition buildDefinition, BuildRequestContext requestContext, GradleLauncherFactory gradleLauncherFactory, ListenerManager listenerManager, ServiceRegistry parentServices) {
+    DefaultRootBuildState(BuildDefinition buildDefinition, BuildRequestContext requestContext, GradleLauncherFactory gradleLauncherFactory, ListenerManager listenerManager, ServiceRegistry services) {
         this.buildDefinition = buildDefinition;
         this.requestContext = requestContext;
         this.gradleLauncherFactory = gradleLauncherFactory;
         this.listenerManager = listenerManager;
-        this.parentServices = parentServices;
+        this.services = services;
     }
 
     @Override
     public <T> T run(Transformer<T, ? super BuildController> buildAction) {
-        GradleLauncher gradleLauncher = gradleLauncherFactory.newInstance(buildDefinition, this, requestContext, parentServices);
+        GradleLauncher gradleLauncher = gradleLauncherFactory.newInstance(buildDefinition, getBuildIdentifier(), requestContext, services);
         final GradleBuildController buildController = new GradleBuildController(gradleLauncher);
         try {
             RootBuildLifecycleListener buildLifecycleListener = listenerManager.getBroadcaster(RootBuildLifecycleListener.class);

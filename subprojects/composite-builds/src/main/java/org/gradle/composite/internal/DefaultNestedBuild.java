@@ -25,12 +25,12 @@ import org.gradle.api.internal.GradleInternal;
 import org.gradle.api.internal.SettingsInternal;
 import org.gradle.initialization.GradleLauncher;
 import org.gradle.initialization.NestedBuildFactory;
-import org.gradle.internal.build.StandAloneNestedBuild;
+import org.gradle.internal.build.NestedBuildState;
 import org.gradle.internal.invocation.BuildController;
 import org.gradle.internal.invocation.GradleBuildController;
 import org.gradle.util.Path;
 
-class DefaultNestedBuild implements StandAloneNestedBuild {
+class DefaultNestedBuild implements NestedBuildState {
     private final BuildDefinition buildDefinition;
     private final NestedBuildFactory nestedBuildFactory;
     private final BuildStateListener buildStateListener;
@@ -46,7 +46,7 @@ class DefaultNestedBuild implements StandAloneNestedBuild {
 
     @Override
     public <T> T run(Transformer<T, ? super BuildController> buildAction) {
-        GradleLauncher gradleLauncher = nestedBuildFactory.nestedInstance(buildDefinition, this);
+        GradleLauncher gradleLauncher = nestedBuildFactory.nestedInstance(buildDefinition, buildIdentifier);
         GradleBuildController buildController = new GradleBuildController(gradleLauncher);
         try {
             final GradleInternal gradle = buildController.getGradle();

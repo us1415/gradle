@@ -18,16 +18,13 @@ package org.gradle.initialization;
 
 import org.gradle.api.artifacts.component.BuildIdentifier;
 import org.gradle.api.internal.BuildDefinition;
-import org.gradle.internal.build.NestedBuildState;
 import org.gradle.internal.invocation.BuildController;
 
 public interface NestedBuildFactory {
     /**
-     * Creates a nested {@link GradleLauncher} instance for the given nested build.
-     *
-     * <p>You should be using the methods on {@link org.gradle.internal.build.BuildStateRegistry} to create various kinds of nested builds, instead of this method.</p>
+     * Creates a nested {@link GradleLauncher} instance with the provided parameters.
      */
-    GradleLauncher nestedInstance(BuildDefinition buildDefinition, NestedBuildState build);
+    GradleLauncher nestedInstance(BuildDefinition buildDefinition, BuildIdentifier buildIdentifier);
 
     /**
      * Creates a {@link BuildController} for nested build instance with the provided parameters.
