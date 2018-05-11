@@ -91,6 +91,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
     private final LinkedHashMap<Task, TaskInfo> executionPlan = new LinkedHashMap<Task, TaskInfo>();
     private final List<TaskInfo> executionQueue = new LinkedList<TaskInfo>();
     private final Map<Project, ResourceLock> projectLocks = Maps.newHashMap();
+    private Set<ResourceLock> allProjectLocks;
     private final TaskFailureCollector failureCollector = new TaskFailureCollector();
     private final TaskInfoFactory nodeFactory = new TaskInfoFactory(failureCollector);
     private Spec<? super Task> filter = Specs.satisfyAll();
@@ -348,7 +349,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
         }
         executionQueue.clear();
         executionQueue.addAll(executionPlan.values());
-
+        allProjectLocks = ImmutableSet.copyOf(projectLocks.values());
     }
 
     @Override
@@ -521,6 +522,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
         entryTasks.clear();
         executionPlan.clear();
         executionQueue.clear();
+        allProjectLocks = null;
         projectLocks.clear();
         failureCollector.clearFailures();
         taskMutations.clear();
@@ -627,7 +629,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
     }
 
     private boolean allProjectsLocked() {
-        for (ResourceLock lock : projectLocks.values()) {
+        for (ResourceLock lock : allProjectLocks) {
             if (!lock.isLocked()) {
                 return false;
             }
