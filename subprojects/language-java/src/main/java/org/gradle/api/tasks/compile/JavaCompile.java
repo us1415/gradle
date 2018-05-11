@@ -76,7 +76,7 @@ public class JavaCompile extends AbstractCompile {
 
         // this mimics the behavior of the Ant javac task (and therefore AntJavaCompiler),
         // which silently excludes files not ending in .java
-        include("**/*.java");
+//        include("**/*.java");
     }
 
     /**
