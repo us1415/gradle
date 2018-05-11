@@ -17,7 +17,6 @@ package org.gradle.execution;
 
 import org.gradle.api.Task;
 import org.gradle.api.execution.TaskExecutionGraph;
-import org.gradle.api.execution.TaskExecutionListener;
 import org.gradle.api.specs.Spec;
 
 import java.util.Set;
@@ -60,6 +59,4 @@ public interface TaskExecutionGraphInternal extends TaskExecutionGraph {
      * Set of requested tasks.
      */
     Set<Task> getFilteredTasks();
-
-    TaskExecutionListener getTaskExecutionListenerSource();
 }

@@ -211,9 +211,6 @@ public class TestBuildOperationExecutor implements BuildOperationExecutor {
             try {
                 buildOperation.run(context);
             } catch (Throwable failure) {
-                if (record.result == null) {
-                    record.result = context.result;
-                }
                 if (record.failure == null) {
                     record.failure = failure;
                 }
