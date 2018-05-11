@@ -33,6 +33,7 @@ import org.gradle.execution.BuildConfigurationActionExecuter;
 import org.gradle.execution.BuildExecuter;
 import org.gradle.internal.build.NestedBuildState;
 import org.gradle.internal.build.RootBuildState;
+import org.gradle.internal.build.StandAloneNestedBuild;
 import org.gradle.internal.buildevents.BuildLogger;
 import org.gradle.internal.buildevents.BuildStartedTime;
 import org.gradle.internal.buildevents.TaskExecutionLogger;
@@ -42,6 +43,7 @@ import org.gradle.internal.concurrent.Stoppable;
 import org.gradle.internal.event.ListenerManager;
 import org.gradle.internal.featurelifecycle.LoggingDeprecatedFeatureHandler;
 import org.gradle.internal.featurelifecycle.ScriptUsageLocationReporter;
+import org.gradle.internal.invocation.GradleBuildController;
 import org.gradle.internal.logging.progress.ProgressLoggerFactory;
 import org.gradle.internal.logging.text.StyledTextOutputFactory;
 import org.gradle.internal.operations.BuildOperationExecutor;
@@ -212,18 +214,20 @@ public class DefaultGradleLauncherFactory implements GradleLauncherFactory {
         }
 
         @Override
-        public GradleLauncher nestedBuildTree(BuildDefinition buildDefinition, BuildIdentifier buildIdentifier) {
+        public StandAloneNestedBuild nestedBuildTree(BuildDefinition buildDefinition, BuildIdentifier buildIdentifier) {
             StartParameter startParameter = buildDefinition.getStartParameter();
             final ServiceRegistry userHomeServices = userHomeDirServiceRegistry.getServicesFor(startParameter.getGradleUserHomeDir());
             BuildRequestMetaData buildRequestMetaData = new DefaultBuildRequestMetaData(Time.currentTimeMillis());
             BuildSessionScopeServices sessionScopeServices = new BuildSessionScopeServices(userHomeServices, crossBuildSessionScopeServices, startParameter, buildRequestMetaData, ClassPath.EMPTY);
             BuildTreeScopeServices buildTreeScopeServices = new BuildTreeScopeServices(sessionScopeServices);
-            return createChildInstance(buildDefinition, buildIdentifier, parent, buildTreeScopeServices, ImmutableList.of(buildTreeScopeServices, sessionScopeServices, new Stoppable() {
+            GradleLauncher childInstance = createChildInstance(buildDefinition, buildIdentifier, parent, buildTreeScopeServices, ImmutableList.of(buildTreeScopeServices, sessionScopeServices, new Stoppable() {
                 @Override
                 public void stop() {
+
                     userHomeDirServiceRegistry.release(userHomeServices);
                 }
             }));
+            return new RootOfNestedBuildTree(buildIdentifier, new GradleBuildController(childInstance));
         }
 
         public void setParent(DefaultGradleLauncher parent) {

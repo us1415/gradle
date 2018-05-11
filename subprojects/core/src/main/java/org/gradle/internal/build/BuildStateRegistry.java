@@ -53,22 +53,17 @@ public interface BuildStateRegistry {
     void registerRootBuild(SettingsInternal settings);
 
     /**
-     * Creates an included build. An included build is-a nested build whose projects and outputs are treated as part of the composite build.
+     * Registers an included build. An included build is-a child build whose projects and outputs are treated as part of the composite build.
      */
     IncludedBuildState addExplicitBuild(BuildDefinition buildDefinition, NestedBuildFactory nestedBuildFactory);
 
     /**
-     * Creates a standalone nested build.
+     * Registers a child build that is not an included or implicit build.
      */
     StandAloneNestedBuild addNestedBuild(BuildDefinition buildDefinition, NestedBuildFactory nestedBuildFactory);
 
     /**
-     * Creates an implicit build. An implicit build is-a nested build whose outputs are used by dependency resolution.
+     * Registers an implicit build. An implicit build is-a child build whose outputs are used by dependency resolution.
      */
     IncludedBuildState addImplicitBuild(BuildDefinition buildDefinition, NestedBuildFactory nestedBuildFactory);
-
-    /**
-     * Creates a new nested build tree.
-     */
-    StandAloneNestedBuild addNestedBuildTree(BuildDefinition buildDefinition, NestedBuildFactory nestedBuildFactory);
 }
