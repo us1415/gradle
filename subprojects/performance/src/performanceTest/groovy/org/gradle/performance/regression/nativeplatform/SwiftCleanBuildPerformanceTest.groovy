@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,29 @@
  * limitations under the License.
  */
 
-package org.gradle.performance.regression.buildcache
+package org.gradle.performance.regression.nativeplatform
 
 import org.gradle.initialization.ParallelismBuildOptions
+import org.gradle.performance.AbstractCrossVersionPerformanceTest
+import org.gradle.performance.categories.PerformanceExperiment
+import org.junit.experimental.categories.Category
 import spock.lang.Unroll
 
-class TaskOutputCachingNativePerformanceTest extends AbstractTaskOutputCachingPerformanceTest {
+@Category(PerformanceExperiment)
+class SwiftCleanBuildPerformanceTest extends AbstractCrossVersionPerformanceTest {
 
     def setup() {
-        runner.minimumVersion = "4.3"
-        runner.targetVersions = ["4.8-20180510001718+0000"]
-        runner.args += ["-Dorg.gradle.caching.native=true", "--parallel", "--${ParallelismBuildOptions.MaxWorkersOption.LONG_OPTION}=6"]
+        runner.minimumVersion = '4.6'
+        runner.targetVersions = ["4.8-20180506235948+0000"]
+        runner.args += ["--parallel", "--${ParallelismBuildOptions.MaxWorkersOption.LONG_OPTION}=6"]
     }
 
     @Unroll
-    def "clean #task on #testProject with local cache"() {
+    def "clean assemble on #testProject"() {
         given:
         runner.testProject = testProject
-        runner.tasksToRun = [task]
+        runner.tasksToRun = ["assemble"]
+        runner.cleanTasks = ["clean"]
         runner.gradleOpts = ["-Xms$maxMemory", "-Xmx$maxMemory"]
 
         when:
@@ -41,9 +46,9 @@ class TaskOutputCachingNativePerformanceTest extends AbstractTaskOutputCachingPe
         result.assertCurrentVersionHasNotRegressed()
 
         where:
-        testProject        | task       | maxMemory
-        'bigCppApp'        | 'assemble' | '256m'
-        'bigCppMulti'      | 'assemble' | '1G'
-        'bigNative'        | 'assemble' | '1G'
+        testProject        | maxMemory
+        'mediumSwiftMulti' | '1G'
+        'bigSwiftApp'      | '1G'
     }
+
 }
