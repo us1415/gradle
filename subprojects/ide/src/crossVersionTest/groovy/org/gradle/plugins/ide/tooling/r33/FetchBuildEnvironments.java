@@ -18,20 +18,21 @@ package org.gradle.plugins.ide.tooling.r33;
 
 import org.gradle.tooling.BuildAction;
 import org.gradle.tooling.BuildController;
+import org.gradle.tooling.model.build.BuildEnvironment;
 import org.gradle.tooling.model.gradle.GradleBuild;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class FetchBuilds implements BuildAction<List<GradleBuild>> {
+public class FetchBuildEnvironments implements BuildAction<List<BuildEnvironment>> {
     @Override
-    public List<GradleBuild> execute(BuildController controller) {
-        List<GradleBuild> result = new ArrayList<GradleBuild>();
+    public List<BuildEnvironment> execute(BuildController controller) {
+        List<BuildEnvironment> environments = new ArrayList<BuildEnvironment>();
         GradleBuild build = controller.getBuildModel();
-        result.add(controller.getModel(build, GradleBuild.class));
+        environments.add(controller.getModel(build, BuildEnvironment.class));
         for (GradleBuild includedBuild : build.getIncludedBuilds()) {
-            result.add(controller.getModel(includedBuild, GradleBuild.class));
+            environments.add(controller.getModel(includedBuild, BuildEnvironment.class));
         }
-        return result;
+        return environments;
     }
 }
