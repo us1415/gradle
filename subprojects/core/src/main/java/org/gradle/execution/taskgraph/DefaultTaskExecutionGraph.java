@@ -90,7 +90,7 @@ public class DefaultTaskExecutionGraph implements TaskExecutionGraphInternal {
         this.coordinationService = coordinationService;
         graphListeners = listenerManager.createAnonymousBroadcaster(TaskExecutionGraphListener.class);
         taskListeners = listenerManager.createAnonymousBroadcaster(TaskExecutionListener.class);
-        taskExecutionPlan = new DefaultTaskExecutionPlan(workerLeaseService, gradleInternal);
+        taskExecutionPlan = new DefaultTaskExecutionPlan(workerLeaseService, gradleInternal, coordinationService);
     }
 
     @Override

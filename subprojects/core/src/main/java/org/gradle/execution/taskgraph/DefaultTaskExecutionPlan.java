@@ -53,6 +53,7 @@ import org.gradle.internal.graph.GraphNodeRenderer;
 import org.gradle.internal.logging.text.StyledTextOutput;
 import org.gradle.internal.resources.ResourceDeadlockException;
 import org.gradle.internal.resources.ResourceLock;
+import org.gradle.internal.resources.ResourceLockCoordinationService;
 import org.gradle.internal.resources.ResourceLockState;
 import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.internal.work.WorkerLeaseRegistry;
@@ -79,6 +80,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.gradle.internal.resources.ResourceLockState.Disposition.FAILED;
+import static org.gradle.internal.resources.ResourceLockState.Disposition.FINISHED;
 
 /**
  * A reusable implementation of TaskExecutionPlan. The {@link #addToTaskGraph(java.util.Collection)} and {@link #clear()} methods are NOT threadsafe, and callers must synchronize access to these
@@ -105,12 +110,14 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
     private final Set<TaskInfo> dependenciesCompleteCache = Sets.newHashSet();
     private final WorkerLeaseService workerLeaseService;
     private final GradleInternal gradle;
+    private final ResourceLockCoordinationService coordinationService;
 
     private boolean tasksCancelled;
 
-    public DefaultTaskExecutionPlan(WorkerLeaseService workerLeaseService, GradleInternal gradle) {
+    public DefaultTaskExecutionPlan(WorkerLeaseService workerLeaseService, GradleInternal gradle, ResourceLockCoordinationService coordinationService) {
         this.workerLeaseService = workerLeaseService;
         this.gradle = gradle;
+        this.coordinationService = coordinationService;
     }
 
     @Override
@@ -550,36 +557,45 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
 
     @Override
     @Nullable
-    public TaskInfo selectNextTask(WorkerLeaseRegistry.WorkerLease workerLease, ResourceLockState resourceLockState) {
+    public TaskInfo selectNextTask(final WorkerLeaseRegistry.WorkerLease workerLease, ResourceLockState resourceLockState) {
         if (allProjectsLocked()) {
             return null;
         }
 
-        Iterator<TaskInfo> iterator = executionQueue.iterator();
+        final AtomicReference<TaskInfo> selected = new AtomicReference<TaskInfo>();
+        final Iterator<TaskInfo> iterator = executionQueue.iterator();
         while (iterator.hasNext()) {
-            TaskInfo taskInfo = iterator.next();
+            final TaskInfo taskInfo = iterator.next();
             if (taskInfo.isReady() && allDependenciesComplete(taskInfo)) {
-                ResourceLock projectLock = getProjectLock(taskInfo);
-                TaskMutationInfo taskMutationInfo = getResolvedTaskMutationInfo(taskInfo);
+                coordinationService.withStateLock(new Transformer<ResourceLockState.Disposition, ResourceLockState>() {
+                    @Override
+                    public ResourceLockState.Disposition transform(ResourceLockState resourceLockState) {
+                        ResourceLock projectLock = getProjectLock(taskInfo);
+                        TaskMutationInfo taskMutationInfo = getResolvedTaskMutationInfo(taskInfo);
 
-                // TODO: convert output file checks to a resource lock
-                if (!projectLock.tryLock() || !workerLease.tryLock() || !canRunWithCurrentlyExecutedTasks(taskInfo, taskMutationInfo)) {
-                    resourceLockState.releaseLocks();
-                    continue;
+                        // TODO: convert output file checks to a resource lock
+                        if (!projectLock.tryLock() || !workerLease.tryLock() || !canRunWithCurrentlyExecutedTasks(taskInfo, taskMutationInfo)) {
+                            return FAILED;
+                        }
+
+                        selected.set(taskInfo);
+                        if (taskInfo.allDependenciesSuccessful()) {
+                            recordTaskStarted(taskInfo);
+                            taskInfo.startExecution();
+                        } else {
+                            taskInfo.skipExecution();
+                        }
+                        iterator.remove();
+                        return FINISHED;
+                    }
+                });
+                if (selected.get() != null) {
+                    break;
                 }
-
-                if (taskInfo.allDependenciesSuccessful()) {
-                    recordTaskStarted(taskInfo);
-                    taskInfo.startExecution();
-                } else {
-                    taskInfo.skipExecution();
-                }
-                iterator.remove();
-
-                return taskInfo;
             }
         }
-        return null;
+
+        return selected.get();
     }
 
     private TaskMutationInfo getResolvedTaskMutationInfo(TaskInfo taskInfo) {

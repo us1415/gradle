@@ -52,7 +52,7 @@ class DefaultTaskExecutionPlanParallelTest extends AbstractProjectBuilderSpec {
     def lockSetup = new LockSetup()
 
     def setup() {
-        executionPlan = new DefaultTaskExecutionPlan(lockSetup.workerLeaseService, gradle)
+        executionPlan = new DefaultTaskExecutionPlan(lockSetup.workerLeaseService, gradle, coordinationService)
     }
 
     def "multiple tasks with async work from the same project can run in parallel"() {

@@ -31,6 +31,7 @@ import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.TaskDependency
 import org.gradle.api.tasks.TaskDestroyables
 import org.gradle.internal.resources.ResourceLock
+import org.gradle.internal.resources.ResourceLockCoordinationService
 import org.gradle.internal.resources.ResourceLockState
 import org.gradle.internal.work.WorkerLeaseRegistry
 import org.gradle.internal.work.WorkerLeaseService
@@ -50,16 +51,21 @@ class DefaultTaskExecutionPlanTest extends AbstractProjectBuilderSpec {
     ProjectInternal root
     def workerLeaseService = Mock(WorkerLeaseService)
     def workerLease = Mock(WorkerLeaseRegistry.WorkerLease)
+    def coordinationService = Mock(ResourceLockCoordinationService)
     def gradle = Mock(GradleInternal)
 
     def setup() {
         root = createRootProject(temporaryFolder.testDirectory)
-        executionPlan = new DefaultTaskExecutionPlan(workerLeaseService, Mock(GradleInternal))
+        executionPlan = new DefaultTaskExecutionPlan(workerLeaseService, Mock(GradleInternal), coordinationService)
         _ * workerLeaseService.getProjectLock(_, _) >> Mock(ResourceLock) {
             _ * isLocked() >> false
             _ * tryLock() >> true
         }
         _ * workerLease.tryLock() >> true
+        _ * coordinationService.withStateLock(_) >> { args ->
+            args[0].transform(Mock(ResourceLockState))
+            return true
+        }
     }
 
     def "schedules tasks in dependency order"() {
