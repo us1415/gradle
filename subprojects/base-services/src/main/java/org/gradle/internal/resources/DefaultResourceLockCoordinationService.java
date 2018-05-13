@@ -131,7 +131,7 @@ public class DefaultResourceLockCoordinationService implements ResourceLockCoord
                     for (ResourceLock resourceLock : lockedResources) {
                         resourceLock.unlock();
                     }
-                    lockedResources.clear();
+                    lockedResources = null;
                 } finally {
                     rollback = false;
                 }
