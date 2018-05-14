@@ -16,7 +16,6 @@
 
 package org.gradle.execution.taskgraph;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import groovy.lang.Closure;
 import org.gradle.api.Action;
@@ -78,7 +77,6 @@ public class DefaultTaskExecutionGraph implements TaskExecutionGraphInternal {
     private final DefaultTaskExecutionPlan taskExecutionPlan;
     private final BuildOperationExecutor buildOperationExecutor;
     private TaskGraphState taskGraphState = TaskGraphState.EMPTY;
-    private List<Task> allTasks;
 
     private final Set<Task> requestedTasks = Sets.newTreeSet();
     private Spec<? super Task> filter = Specs.SATISFIES_ALL;
@@ -218,10 +216,7 @@ public class DefaultTaskExecutionGraph implements TaskExecutionGraphInternal {
 
     public List<Task> getAllTasks() {
         ensurePopulated();
-        if (allTasks == null) {
-            allTasks = ImmutableList.copyOf(taskExecutionPlan.getTasks());
-        }
-        return allTasks;
+        return taskExecutionPlan.getTasks();
     }
 
     @Override
@@ -237,7 +232,6 @@ public class DefaultTaskExecutionGraph implements TaskExecutionGraphInternal {
                     "Task information is not available, as this task execution graph has not been populated.");
             case DIRTY:
                 taskExecutionPlan.determineExecutionPlan();
-                allTasks = null;
                 taskGraphState = TaskGraphState.POPULATED;
                 return;
             case POPULATED:
