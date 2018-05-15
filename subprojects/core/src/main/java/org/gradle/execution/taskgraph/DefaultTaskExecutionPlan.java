@@ -19,6 +19,7 @@ package org.gradle.execution.taskgraph;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -72,7 +73,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -86,9 +86,15 @@ import java.util.TreeSet;
  */
 @NonNullApi
 public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
+    private static final Function<TaskInfo, Task> GET_TASK = new Function<TaskInfo, Task>() {
+        @Override
+        public Task apply(TaskInfo input) {
+            return input.getTask();
+        }
+    };
     private final Set<TaskInfo> tasksInUnknownState = new LinkedHashSet<TaskInfo>();
     private final Set<TaskInfo> entryTasks = new LinkedHashSet<TaskInfo>();
-    private final LinkedHashMap<Task, TaskInfo> executionPlan = new LinkedHashMap<Task, TaskInfo>();
+    private Collection<TaskInfo> executionPlan;
     private final List<TaskInfo> executionQueue = new LinkedList<TaskInfo>();
     private final Map<Project, ResourceLock> projectLocks = Maps.newHashMap();
     private final TaskFailureCollector failureCollector = new TaskFailureCollector();
@@ -272,6 +278,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
                 return new TaskInfoInVisitingSegment(taskInfo, index++);
             }
         }));
+        LinkedList<TaskInfo> executionPlan = new LinkedList<TaskInfo>();
         int visitingSegmentCounter = nodeQueue.size();
 
         HashMultimap<TaskInfo, Integer> visitingNodes = HashMultimap.create();
@@ -284,7 +291,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
             int currentSegment = taskInfoInVisitingSegment.visitingSegment;
             TaskInfo taskNode = taskInfoInVisitingSegment.taskInfo;
 
-            if (taskNode.isIncludeInGraph() || executionPlan.containsKey(taskNode.getTask())) {
+            if (taskNode.isIncludeInGraph() || executionPlan.contains(taskNode)) {
                 nodeQueue.remove(0);
                 visitingNodes.remove(taskNode, currentSegment);
                 maybeRemoveProcessedShouldRunAfterEdge(walkedShouldRunAfterEdges, taskNode);
@@ -299,7 +306,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
                 // task in the queue
                 recordEdgeIfArrivedViaShouldRunAfter(walkedShouldRunAfterEdges, path, taskNode);
                 removeShouldRunAfterSuccessorsIfTheyImposeACycle(visitingNodes, taskInfoInVisitingSegment);
-                takePlanSnapshotIfCanBeRestoredToCurrentTask(planBeforeVisiting, taskNode);
+                takePlanSnapshotIfCanBeRestoredToCurrentTask(planBeforeVisiting, taskNode, executionPlan);
                 ArrayList<TaskInfo> successors = new ArrayList<TaskInfo>();
                 addAllSuccessorsInReverseOrder(taskNode, successors);
                 for (TaskInfo successor : successors) {
@@ -310,7 +317,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
                             toBeRemoved.from.removeShouldRunAfterSuccessor(toBeRemoved.to);
                             restorePath(path, toBeRemoved);
                             restoreQueue(nodeQueue, visitingNodes, toBeRemoved);
-                            restoreExecutionPlan(planBeforeVisiting, toBeRemoved);
+                            restoreExecutionPlan(planBeforeVisiting, toBeRemoved, executionPlan);
                             break;
                         } else {
                             onOrderingCycle();
@@ -325,7 +332,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
                 maybeRemoveProcessedShouldRunAfterEdge(walkedShouldRunAfterEdges, taskNode);
                 visitingNodes.remove(taskNode, currentSegment);
                 path.pop();
-                executionPlan.put(taskNode.getTask(), taskNode);
+                executionPlan.add(taskNode);
                 Project project = taskNode.getTask().getProject();
                 projectLocks.put(project, getOrCreateProjectLock(project));
 
@@ -347,13 +354,19 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
             }
         }
         executionQueue.clear();
-        executionQueue.addAll(executionPlan.values());
-
+        executionQueue.addAll(executionPlan);
+        this.executionPlan = ImmutableList.copyOf(executionPlan);
     }
 
     @Override
     public Set<Task> getDependencies(Task task) {
-        TaskInfo node = executionPlan.get(task);
+        TaskInfo node = null;
+        for (TaskInfo taskInfo : executionPlan) {
+            if (taskInfo.getTask().equals(task)) {
+                node = taskInfo;
+                break;
+            }
+        }
         if (node == null) {
             throw new IllegalStateException("Task is not part of the execution plan, no dependency information is available.");
         }
@@ -379,8 +392,8 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
         }
     }
 
-    private void restoreExecutionPlan(HashMap<TaskInfo, Integer> planBeforeVisiting, GraphEdge toBeRemoved) {
-        Iterator<Map.Entry<Task, TaskInfo>> executionPlanIterator = executionPlan.entrySet().iterator();
+    private void restoreExecutionPlan(HashMap<TaskInfo, Integer> planBeforeVisiting, GraphEdge toBeRemoved, LinkedList<TaskInfo> executionPlan) {
+        Iterator<TaskInfo> executionPlanIterator = executionPlan.iterator();
         for (int i = 0; i < planBeforeVisiting.get(toBeRemoved.from); i++) {
             executionPlanIterator.next();
         }
@@ -425,7 +438,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
         });
     }
 
-    private void takePlanSnapshotIfCanBeRestoredToCurrentTask(HashMap<TaskInfo, Integer> planBeforeVisiting, TaskInfo taskNode) {
+    private void takePlanSnapshotIfCanBeRestoredToCurrentTask(HashMap<TaskInfo, Integer> planBeforeVisiting, TaskInfo taskNode, LinkedList<TaskInfo> executionPlan) {
         if (taskNode.getShouldSuccessors().size() > 0) {
             planBeforeVisiting.put(taskNode, executionPlan.size());
         }
@@ -519,7 +532,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
     public void clear() {
         nodeFactory.clear();
         entryTasks.clear();
-        executionPlan.clear();
+        executionPlan = null;
         executionQueue.clear();
         projectLocks.clear();
         failureCollector.clearFailures();
@@ -532,7 +545,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
 
     @Override
     public Set<Task> getTasks() {
-        return executionPlan.keySet();
+        return executionPlan == null ? ImmutableSet.<Task>of() : ImmutableSet.copyOf(Iterables.transform(executionPlan, GET_TASK));
     }
 
     @Override
@@ -905,7 +918,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
 
     private boolean abortExecution(boolean abortAll) {
         boolean aborted = false;
-        for (TaskInfo taskInfo : executionPlan.values()) {
+        for (TaskInfo taskInfo : executionPlan) {
             // Allow currently executing and enforced tasks to complete, but skip everything else.
             if (taskInfo.isRequired()) {
                 taskInfo.skipExecution();
@@ -939,7 +952,7 @@ public class DefaultTaskExecutionPlan implements TaskExecutionPlan {
 
     @Override
     public boolean allTasksComplete() {
-        for (TaskInfo taskInfo : executionPlan.values()) {
+        for (TaskInfo taskInfo : executionPlan) {
             if (!taskInfo.isComplete()) {
                 return false;
             }
