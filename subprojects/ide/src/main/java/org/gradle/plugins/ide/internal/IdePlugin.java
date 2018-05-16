@@ -70,8 +70,7 @@ public abstract class IdePlugin implements Plugin<Project> {
     public void apply(Project target) {
         project = target;
         String lifecycleTaskName = getLifecycleTaskName();
-        lifecycleTask = target.getTasks().createLater(lifecycleTaskName);
-        lifecycleTask.configure(new Action<Task>() {
+        lifecycleTask = target.getTasks().createLater(lifecycleTaskName, new Action<Task>() {
             @Override
             public void execute(Task task) {
                 task.setGroup("IDE");
@@ -86,11 +85,11 @@ public abstract class IdePlugin implements Plugin<Project> {
         onApply(target);
     }
 
-    public TaskProvider<? extends Task> getLifecycleTask() {
+    public TaskProvider<Task> getLifecycleTask() {
         return lifecycleTask;
     }
 
-    public TaskProvider<? extends Task> getCleanTask() {
+    public TaskProvider<Delete> getCleanTask() {
         return cleanTask;
     }
 
@@ -98,29 +97,21 @@ public abstract class IdePlugin implements Plugin<Project> {
         return String.format("clean%s", StringUtils.capitalize(taskName));
     }
 
-    public void addWorker(Task worker) {
-        addWorker(project.getTasks().getByNameLater(Task.class, worker.getName()));
+    public void addWorker(String name) {
+        addWorker(name, true);
     }
 
-    public void addWorker(TaskProvider<? extends Task> worker) {
-        addWorker(worker, true);
-    }
-
-    public void addWorker(Task worker, boolean includeInClean) {
-        addWorker(project.getTasks().getByNameLater(Task.class, worker.getName()), includeInClean);
-    }
-
-    public void addWorker(final TaskProvider<? extends Task> worker, boolean includeInClean) {
+    public void addWorker(final String name, boolean includeInClean) {
         lifecycleTask.configure(new Action<Task>() {
             @Override
             public void execute(Task task) {
-                task.dependsOn(worker);
+                task.dependsOn(name);
             }
         });
-        final TaskProvider<Delete> cleanWorker = project.getTasks().createLater(cleanName(worker.getName()), Delete.class, new Action<Delete>() {
+        final TaskProvider<Delete> cleanWorker = project.getTasks().createLater(cleanName(name), Delete.class, new Action<Delete>() {
             @Override
             public void execute(Delete cleanWorker) {
-                cleanWorker.delete(worker.get().getOutputs().getFiles());
+                cleanWorker.delete(project.getTasks().get(Task.class, name));
             }
         });
 

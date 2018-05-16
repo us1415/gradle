@@ -198,26 +198,12 @@ public class VisualStudioPlugin extends IdePlugin {
     }
 
     private void configureCleanTask() {
-        final Delete cleanTask = (Delete) getCleanTask();
-
-        project.getTasks().withType(GenerateSolutionFileTask.class).all(new Action<GenerateSolutionFileTask>() {
+        getCleanTask().configure(new Action<Delete>() {
             @Override
-            public void execute(GenerateSolutionFileTask task) {
-                cleanTask.delete(task.getOutputs().getFiles());
-            }
-        });
-
-        project.getTasks().withType(GenerateFiltersFileTask.class).all(new Action<GenerateFiltersFileTask>() {
-            @Override
-            public void execute(GenerateFiltersFileTask task) {
-                cleanTask.delete(task.getOutputs().getFiles());
-            }
-        });
-
-        project.getTasks().withType(GenerateProjectFileTask.class).all(new Action<GenerateProjectFileTask>() {
-            @Override
-            public void execute(GenerateProjectFileTask task) {
-                cleanTask.delete(task.getOutputs().getFiles());
+            public void execute(Delete cleanTask) {
+                cleanTask.delete(project.getTasks().withType(GenerateSolutionFileTask.class));
+                cleanTask.delete(project.getTasks().withType(GenerateFiltersFileTask.class));
+                cleanTask.delete(project.getTasks().withType(GenerateProjectFileTask.class));
             }
         });
     }

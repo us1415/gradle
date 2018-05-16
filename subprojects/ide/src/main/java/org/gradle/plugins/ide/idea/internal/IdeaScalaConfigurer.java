@@ -72,19 +72,14 @@ public class IdeaScalaConfigurer {
                 final boolean useScalaSdk = ideaTargetVersion == null || IDEA_VERSION_WHEN_SCALA_SDK_WAS_INTRODUCED.compareTo(ideaTargetVersion) <= 0;
                 final Collection<Project> scalaProjects = findProjectsApplyingIdeaAndScalaPlugins();
                 final Map<String, ProjectLibrary> scalaCompilerLibraries = Maps.newLinkedHashMap();
-                rootProject.getTasks().getByNameLater(Task.class, "ideaProject").configure(new Action<Task>() {
+                rootProject.getTasks().getByName("ideaProject").doFirst(new Action<Task>() {
                     @Override
                     public void execute(Task task) {
-                        task.doFirst(new Action<Task>() {
-                            @Override
-                            public void execute(Task task) {
-                                if (scalaProjects.size() > 0) {
-                                    scalaCompilerLibraries.clear();
-                                    scalaCompilerLibraries.putAll(resolveScalaCompilerLibraries(scalaProjects, useScalaSdk));
-                                    declareUniqueProjectLibraries(Sets.newLinkedHashSet(scalaCompilerLibraries.values()));
-                                }
-                            }
-                        });
+                        if (scalaProjects.size() > 0) {
+                            scalaCompilerLibraries.clear();
+                            scalaCompilerLibraries.putAll(resolveScalaCompilerLibraries(scalaProjects, useScalaSdk));
+                            declareUniqueProjectLibraries(Sets.newLinkedHashSet(scalaCompilerLibraries.values()));
+                        }
                     }
                 });
                 rootProject.configure(scalaProjects, new Action<Project>() {
