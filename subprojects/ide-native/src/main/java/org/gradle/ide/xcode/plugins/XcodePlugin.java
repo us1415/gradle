@@ -32,6 +32,7 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.specs.Spec;
 import org.gradle.api.tasks.Sync;
 import org.gradle.api.tasks.TaskContainer;
+import org.gradle.api.tasks.TaskProvider;
 import org.gradle.ide.xcode.XcodeExtension;
 import org.gradle.ide.xcode.XcodeRootExtension;
 import org.gradle.ide.xcode.internal.DefaultXcodeExtension;
@@ -132,41 +133,56 @@ public class XcodePlugin extends IdePlugin {
         }
     }
 
-    private GenerateXcodeProjectFileTask createProjectTask(final ProjectInternal project) {
-        File xcodeProjectPackageDir = xcodeProject.getLocationDir();
+    private void createProjectTask(final ProjectInternal project) {
+        final File xcodeProjectPackageDir = xcodeProject.getLocationDir();
 
-        GenerateWorkspaceSettingsFileTask workspaceSettingsFileTask = project.getTasks().create("xcodeProjectWorkspaceSettings", GenerateWorkspaceSettingsFileTask.class);
-        workspaceSettingsFileTask.setOutputFile(new File(xcodeProjectPackageDir, "project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings"));
+        final TaskProvider<GenerateWorkspaceSettingsFileTask> workspaceSettingsFileTask = project.getTasks().createLater("xcodeProjectWorkspaceSettings", GenerateWorkspaceSettingsFileTask.class, new Action<GenerateWorkspaceSettingsFileTask>() {
+            @Override
+            public void execute(GenerateWorkspaceSettingsFileTask workspaceSettingsFileTask) {
+                workspaceSettingsFileTask.setOutputFile(new File(xcodeProjectPackageDir, "project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings"));
+            }
+        });
 
         String xcodeProjectTaskName = "xcodeProject";
-        GenerateXcodeProjectFileTask projectFileTask = project.getTasks().create(xcodeProjectTaskName, GenerateXcodeProjectFileTask.class);
-        projectFileTask.dependsOn(workspaceSettingsFileTask);
-        projectFileTask.dependsOn(this.xcodeProject.getTaskDependencies());
-        projectFileTask.dependsOn(project.getTasks().withType(GenerateSchemeFileTask.class));
-        projectFileTask.setXcodeProject(this.xcodeProject);
-        projectFileTask.setOutputFile(new File(xcodeProjectPackageDir, "project.pbxproj"));
+        TaskProvider<GenerateXcodeProjectFileTask> projectFileTask = project.getTasks().createLater(xcodeProjectTaskName, GenerateXcodeProjectFileTask.class, new Action<GenerateXcodeProjectFileTask>() {
+            @Override
+            public void execute(GenerateXcodeProjectFileTask projectFileTask) {
+                projectFileTask.dependsOn(workspaceSettingsFileTask);
+                projectFileTask.dependsOn(xcodeProject.getTaskDependencies());
+                projectFileTask.dependsOn(project.getTasks().withType(GenerateSchemeFileTask.class));
+                projectFileTask.setXcodeProject(xcodeProject);
+                projectFileTask.setOutputFile(new File(xcodeProjectPackageDir, "project.pbxproj"));
+            }
+        });
 
-        artifactRegistry.registerIdeProject(new XcodeProjectMetadata(this.xcodeProject, projectFileTask));
+        // TODO: Make lazy
+        artifactRegistry.registerIdeProject(new XcodeProjectMetadata(xcodeProject, projectFileTask.get()));
 
         addWorker(xcodeProjectTaskName);
-        return projectFileTask;
     }
 
-    private GenerateXcodeWorkspaceFileTask createWorkspaceTask(Project project, DefaultXcodeWorkspace workspace) {
-        File xcodeWorkspacePackageDir = project.file(project.getName() + ".xcworkspace");
+    private void createWorkspaceTask(Project project, DefaultXcodeWorkspace workspace) {
+        final File xcodeWorkspacePackageDir = project.file(project.getName() + ".xcworkspace");
         workspace.getLocation().set(xcodeWorkspacePackageDir);
 
-        GenerateWorkspaceSettingsFileTask workspaceSettingsFileTask = project.getTasks().create("xcodeWorkspaceWorkspaceSettings", GenerateWorkspaceSettingsFileTask.class);
-        workspaceSettingsFileTask.setOutputFile(new File(xcodeWorkspacePackageDir, "xcshareddata/WorkspaceSettings.xcsettings"));
+        final TaskProvider<GenerateWorkspaceSettingsFileTask> workspaceSettingsFileTask = project.getTasks().createLater("xcodeWorkspaceWorkspaceSettings", GenerateWorkspaceSettingsFileTask.class, new Action<GenerateWorkspaceSettingsFileTask>() {
+            @Override
+            public void execute(GenerateWorkspaceSettingsFileTask workspaceSettingsFileTask) {
+                workspaceSettingsFileTask.setOutputFile(new File(xcodeWorkspacePackageDir, "xcshareddata/WorkspaceSettings.xcsettings"));
+            }
+        });
 
         String workspaceTaskName = "xcodeWorkspace";
-        GenerateXcodeWorkspaceFileTask workspaceFileTask = project.getTasks().create(workspaceTaskName, GenerateXcodeWorkspaceFileTask.class);
-        workspaceFileTask.dependsOn(workspaceSettingsFileTask);
-        workspaceFileTask.setOutputFile(new File(xcodeWorkspacePackageDir, "contents.xcworkspacedata"));
-        workspaceFileTask.setXcodeProjectLocations(artifactRegistry.getIdeProjectFiles(XcodeProjectMetadata.class));
+        project.getTasks().createLater(workspaceTaskName, GenerateXcodeWorkspaceFileTask.class, new Action<GenerateXcodeWorkspaceFileTask>() {
+            @Override
+            public void execute(GenerateXcodeWorkspaceFileTask workspaceFileTask) {
+                workspaceFileTask.dependsOn(workspaceSettingsFileTask);
+                workspaceFileTask.setOutputFile(new File(xcodeWorkspacePackageDir, "contents.xcworkspacedata"));
+                workspaceFileTask.setXcodeProjectLocations(artifactRegistry.getIdeProjectFiles(XcodeProjectMetadata.class));
+            }
+        });
 
         addWorker(workspaceTaskName);
-        return workspaceFileTask;
     }
 
     private String getBridgeTaskPath(Project project) {
