@@ -69,17 +69,20 @@ public abstract class IdePlugin implements Plugin<Project> {
     @Override
     public void apply(Project target) {
         project = target;
+        final String ide = getIdeName();
         String lifecycleTaskName = getLifecycleTaskName();
         lifecycleTask = target.getTasks().createLater(lifecycleTaskName, new Action<Task>() {
             @Override
             public void execute(Task task) {
                 task.setGroup("IDE");
+                task.setDescription("Generates all " + ide + " files.");
             }
         });
         cleanTask = target.getTasks().createLater(cleanName(lifecycleTaskName), Delete.class, new Action<Delete>() {
             @Override
             public void execute(Delete task) {
                 task.setGroup("IDE");
+                task.setDescription("Cleans all " + ide + " files.");
             }
         });
         onApply(target);
@@ -171,6 +174,7 @@ public abstract class IdePlugin implements Plugin<Project> {
     }
 
     protected abstract String getLifecycleTaskName();
+    protected abstract String getIdeName();
 
     public boolean isRoot() {
         return project.getParent() == null;

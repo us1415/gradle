@@ -21,7 +21,6 @@ import org.gradle.api.Incubating;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.internal.file.FileResolver;
-import org.gradle.api.tasks.Delete;
 import org.gradle.ide.visualstudio.VisualStudioExtension;
 import org.gradle.ide.visualstudio.VisualStudioProject;
 import org.gradle.ide.visualstudio.VisualStudioRootExtension;
@@ -79,6 +78,11 @@ public class VisualStudioPlugin extends IdePlugin {
     }
 
     @Override
+    protected String getIdeName() {
+        return "Visual Studio";
+    }
+
+    @Override
     protected void onApply(final Project target) {
         project.getPluginManager().apply(LifecycleBasePlugin.class);
 
@@ -87,21 +91,9 @@ public class VisualStudioPlugin extends IdePlugin {
         if (isRoot()) {
             extension = (VisualStudioExtensionInternal) project.getExtensions().create(VisualStudioRootExtension.class, "visualStudio", DefaultVisualStudioRootExtension.class, project.getName(), instantiator, target.getObjects(), fileResolver, artifactRegistry);
             final VisualStudioSolution solution = ((VisualStudioRootExtension) extension).getSolution();
-            getLifecycleTask().configure(new Action<Task>() {
-                @Override
-                public void execute(Task task) {
-                    task.dependsOn(solution);
-                }
-            });
             addWorkspace(solution);
         } else {
             extension = (VisualStudioExtensionInternal) project.getExtensions().create(VisualStudioExtension.class, "visualStudio", DefaultVisualStudioExtension.class, instantiator, fileResolver, artifactRegistry);
-            getLifecycleTask().configure(new Action<Task>() {
-                @Override
-                public void execute(Task task) {
-                    task.dependsOn(extension.getProjects());
-                }
-            });
         }
         includeBuildFileInProject(extension);
 
@@ -186,8 +178,6 @@ public class VisualStudioPlugin extends IdePlugin {
 
             vsSolution.builtBy(createSolutionTask(vsSolution));
         }
-
-        configureCleanTask();
     }
 
     private void addTasksForVisualStudioProject(VisualStudioProjectInternal vsProject) {
@@ -197,33 +187,28 @@ public class VisualStudioPlugin extends IdePlugin {
         lifecycleTask.dependsOn(vsProject);
     }
 
-    private void configureCleanTask() {
-        getCleanTask().configure(new Action<Delete>() {
-            @Override
-            public void execute(Delete cleanTask) {
-                cleanTask.delete(project.getTasks().withType(GenerateSolutionFileTask.class));
-                cleanTask.delete(project.getTasks().withType(GenerateFiltersFileTask.class));
-                cleanTask.delete(project.getTasks().withType(GenerateProjectFileTask.class));
-            }
-        });
-    }
-
     private Task createSolutionTask(VisualStudioSolution solution) {
-        GenerateSolutionFileTask solutionFileTask = project.getTasks().create(solution.getName() + "VisualStudioSolution", GenerateSolutionFileTask.class);
+        String taskName = solution.getName() + "VisualStudioSolution";
+        GenerateSolutionFileTask solutionFileTask = project.getTasks().create(taskName, GenerateSolutionFileTask.class);
         solutionFileTask.setVisualStudioSolution(solution);
+        addWorker(taskName);
         return solutionFileTask;
     }
 
     private Task createProjectsFileTask(VisualStudioProject vsProject) {
-        GenerateProjectFileTask task = project.getTasks().create(vsProject.getName() + "VisualStudioProject", GenerateProjectFileTask.class);
+        String taskName = vsProject.getName() + "VisualStudioProject";
+        GenerateProjectFileTask task = project.getTasks().create(taskName, GenerateProjectFileTask.class);
         task.setVisualStudioProject(vsProject);
         task.initGradleCommand();
+        addWorker(taskName);
         return task;
     }
 
     private Task createFiltersFileTask(VisualStudioProject vsProject) {
-        GenerateFiltersFileTask task = project.getTasks().create(vsProject.getName() + "VisualStudioFilters", GenerateFiltersFileTask.class);
+        String taskName = vsProject.getName() + "VisualStudioFilters";
+        GenerateFiltersFileTask task = project.getTasks().create(taskName, GenerateFiltersFileTask.class);
         task.setVisualStudioProject(vsProject);
+        addWorker(taskName);
         return task;
     }
 }

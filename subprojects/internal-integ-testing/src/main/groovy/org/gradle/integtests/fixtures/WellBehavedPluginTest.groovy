@@ -84,9 +84,7 @@ abstract class WellBehavedPluginTest extends AbstractIntegrationSpec {
             'cpp-unit-test',
             'cpp-library',
             'cpp-application',
-
-            'visual-studio',
-            'xcode',
+            
             'scala',
             'java-gradle-plugin',
 

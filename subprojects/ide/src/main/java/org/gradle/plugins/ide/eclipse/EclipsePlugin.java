@@ -39,7 +39,6 @@ import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.plugins.WarPlugin;
 import org.gradle.api.plugins.scala.ScalaBasePlugin;
 import org.gradle.api.tasks.SourceSetContainer;
-import org.gradle.api.tasks.TaskContainer;
 import org.gradle.internal.reflect.Instantiator;
 import org.gradle.plugins.ear.EarPlugin;
 import org.gradle.plugins.ide.api.XmlFileContentMerger;
@@ -92,10 +91,12 @@ public class EclipsePlugin extends IdePlugin {
     }
 
     @Override
-    protected void onApply(Project project) {
-        getLifecycleTask().setDescription("Generates all Eclipse files.");
-        getCleanTask().setDescription("Cleans all Eclipse files.");
+    protected String getIdeName() {
+        return "Eclipse";
+    }
 
+    @Override
+    protected void onApply(Project project) {
         EclipseModel model = project.getExtensions().create("eclipse", EclipseModel.class);
 
         configureEclipseProject((ProjectInternal) project, model);
@@ -112,7 +113,7 @@ public class EclipsePlugin extends IdePlugin {
     }
 
     private void configureEclipseProject(final ProjectInternal project, final EclipseModel model) {
-        maybeAddTask(project, this, ECLIPSE_PROJECT_TASK_NAME, GenerateEclipseProject.class, new Action<GenerateEclipseProject>() {
+        addTask(project, this, ECLIPSE_PROJECT_TASK_NAME, GenerateEclipseProject.class, new Action<GenerateEclipseProject>() {
             @Override
             public void execute(GenerateEclipseProject task) {
                 final EclipseProject projectModel = task.getProjectModel();
@@ -198,7 +199,7 @@ public class EclipsePlugin extends IdePlugin {
         project.getPlugins().withType(JavaBasePlugin.class, new Action<JavaBasePlugin>() {
             @Override
             public void execute(JavaBasePlugin javaBasePlugin) {
-                maybeAddTask(project, eclipsePlugin, ECLIPSE_CP_TASK_NAME, GenerateEclipseClasspath.class, new Action<GenerateEclipseClasspath>() {
+                addTask(project, eclipsePlugin, ECLIPSE_CP_TASK_NAME, GenerateEclipseClasspath.class, new Action<GenerateEclipseClasspath>() {
                     @Override
                     public void execute(final GenerateEclipseClasspath task) {
                         //task properties:
@@ -295,7 +296,7 @@ public class EclipsePlugin extends IdePlugin {
         project.getPlugins().withType(JavaBasePlugin.class, new Action<JavaBasePlugin>() {
             @Override
             public void execute(JavaBasePlugin javaBasePlugin) {
-                maybeAddTask(project, eclipsePlugin, ECLIPSE_JDT_TASK_NAME, GenerateEclipseJdt.class, new Action<GenerateEclipseJdt>() {
+                addTask(project, eclipsePlugin, ECLIPSE_JDT_TASK_NAME, GenerateEclipseJdt.class, new Action<GenerateEclipseJdt>() {
                     @Override
                     public void execute(GenerateEclipseJdt task) {
                         //task properties:
@@ -368,14 +369,8 @@ public class EclipsePlugin extends IdePlugin {
         };
     }
 
-    private static <T extends Task> void maybeAddTask(Project project, IdePlugin plugin, String taskName, Class<T> taskType, Action<T> action) {
-        TaskContainer tasks = project.getTasks();
-        if (tasks.findByName(taskName) != null) {
-            return;
-        }
-
-        T task = tasks.create(taskName, taskType);
-        action.execute(task);
-        plugin.addWorker(task);
+    private static <T extends Task> void addTask(Project project, IdePlugin plugin, String taskName, Class<T> taskType, Action<T> action) {
+        project.getTasks().create(taskName, taskType, action);
+        plugin.addWorker(taskName);
     }
 }

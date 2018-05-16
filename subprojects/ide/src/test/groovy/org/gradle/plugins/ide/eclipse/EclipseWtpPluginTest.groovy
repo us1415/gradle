@@ -38,8 +38,8 @@ class EclipseWtpPluginTest extends AbstractProjectBuilderSpec {
         wtpPlugin.apply(project)
 
         then:
-        wtpPlugin.lifecycleTask.description
-        wtpPlugin.cleanTask.description
+        wtpPlugin.lifecycleTask.get().description
+        wtpPlugin.cleanTask.get().description
     }
 
     def "does not break when eclipse and eclipseWtp applied"() {

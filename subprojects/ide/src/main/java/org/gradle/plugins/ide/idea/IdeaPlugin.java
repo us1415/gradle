@@ -24,6 +24,7 @@ import com.google.common.collect.Sets;
 import org.gradle.api.Action;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.component.BuildIdentifier;
@@ -119,10 +120,12 @@ public class IdeaPlugin extends IdePlugin {
     }
 
     @Override
-    protected void onApply(final Project project) {
-        getLifecycleTask().setDescription("Generates IDEA project files (IML, IPR, IWS)");
-        getCleanTask().setDescription("Cleans IDEA project files (IML, IPR)");
+    protected String getIdeName() {
+        return "IDEA";
+    }
 
+    @Override
+    protected void onApply(final Project project) {
         ideaModel = project.getExtensions().create("idea", IdeaModel.class);
 
         configureIdeaWorkspace(project);
@@ -142,20 +145,22 @@ public class IdeaPlugin extends IdePlugin {
 
     private void configureIdeaWorkspace(final Project project) {
         if (isRoot()) {
-            GenerateIdeaWorkspace task = project.getTasks().create("ideaWorkspace", GenerateIdeaWorkspace.class);
+            String taskName = "ideaWorkspace";
+            GenerateIdeaWorkspace task = project.getTasks().create(taskName, GenerateIdeaWorkspace.class);
             task.setDescription("Generates an IDEA workspace file (IWS)");
             IdeaWorkspace workspace = new IdeaWorkspace();
             workspace.setIws(new XmlFileContentMerger(task.getXmlTransformer()));
             task.setWorkspace(workspace);
             ideaModel.setWorkspace(task.getWorkspace());
             task.setOutputFile(new File(project.getProjectDir(), project.getName() + ".iws"));
-            addWorker(task, false);
+            addWorker(taskName, false);
         }
     }
 
     private void configureIdeaProject(final Project project) {
         if (isRoot()) {
-            final GenerateIdeaProject projectTask = project.getTasks().create("ideaProject", GenerateIdeaProject.class);
+            String taskName = "ideaProject";
+            final GenerateIdeaProject projectTask = project.getTasks().create(taskName, GenerateIdeaProject.class);
             projectTask.setDescription("Generates IDEA project file (IPR)");
             XmlFileContentMerger ipr = new XmlFileContentMerger(projectTask.getXmlTransformer());
             IdeaProject ideaProject = instantiator.newInstance(IdeaProject.class, project, ipr);
@@ -212,7 +217,7 @@ public class IdeaPlugin extends IdePlugin {
                 }
             });
 
-            addWorker(projectTask);
+            addWorker(taskName);
 
             addWorkspace(ideaProject);
         }
@@ -241,7 +246,8 @@ public class IdeaPlugin extends IdePlugin {
     }
 
     private void configureIdeaModule(final ProjectInternal project) {
-        final GenerateIdeaModule task = project.getTasks().create("ideaModule", GenerateIdeaModule.class);
+        String taskName = "ideaModule";
+        final GenerateIdeaModule task = project.getTasks().create(taskName, GenerateIdeaModule.class);
         task.setDescription("Generates IDEA module files (IML)");
         IdeaModuleIml iml = new IdeaModuleIml(task.getXmlTransformer(), project.getProjectDir());
         final IdeaModule module = instantiator.newInstance(IdeaModule.class, project, iml);
@@ -307,7 +313,7 @@ public class IdeaPlugin extends IdePlugin {
 
         artifactRegistry.registerIdeProject(new IdeaModuleMetadata(module, task));
 
-        addWorker(task);
+        addWorker(taskName);
     }
 
     private void configureForJavaPlugin(final Project project) {
@@ -491,10 +497,15 @@ public class IdeaPlugin extends IdePlugin {
 
     private void linkCompositeBuildDependencies(final ProjectInternal project) {
         if (isRoot()) {
-            getLifecycleTask().dependsOn(new Callable<List<TaskDependency>>() {
+            getLifecycleTask().configure(new Action<Task>() {
                 @Override
-                public List<TaskDependency> call() {
-                    return allImlArtifactsInComposite(project, ideaModel.getProject());
+                public void execute(Task task) {
+                    task.dependsOn(new Callable<List<TaskDependency>>() {
+                        @Override
+                        public List<TaskDependency> call() {
+                            return allImlArtifactsInComposite(project, ideaModel.getProject());
+                        }
+                    });
                 }
             });
         }
