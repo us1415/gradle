@@ -29,11 +29,8 @@ import org.gradle.cache.CacheDecorator
 import org.gradle.cache.CacheRepository
 import org.gradle.cache.PersistentCache
 import org.gradle.cache.PersistentIndexedCache
-import org.gradle.internal.reflect.DefaultConfigurableRule
-import org.gradle.internal.reflect.InstantiatingAction
-import org.gradle.internal.resolve.caching.CrossBuildCachingRuleExecutorTest.Details
-import org.gradle.internal.resolve.caching.CrossBuildCachingRuleExecutorTest.Id
-import org.gradle.internal.resolve.caching.CrossBuildCachingRuleExecutorTest.Result
+import org.gradle.internal.action.DefaultConfigurableRule
+import org.gradle.internal.action.InstantiatingAction
 import org.gradle.internal.serialize.Serializer
 import org.gradle.util.BuildCommencedTimeProvider
 import org.gradle.util.TestUtil
@@ -193,13 +190,13 @@ class CrossBuildCachingRuleExecutorTest extends Specification {
     void withToUpperCaseRule() {
         rule = new InstantiatingAction<Details>(DefaultConfigurableRule.of(
             ToUpperCase
-        ), TestUtil.instantiatorFactory().decorate(), shouldNotFail())
+        ), TestUtil.instantiatorFactory().decorate(), shouldNotFail(), TestUtil.valueSnapshotter())
     }
 
     void withNonCacheableToUpperCaseRule() {
         rule = new InstantiatingAction<Details>(DefaultConfigurableRule.of(
             ToUpperCaseNotCached
-        ), TestUtil.instantiatorFactory().decorate(), shouldNotFail())
+        ), TestUtil.instantiatorFactory().decorate(), shouldNotFail(), TestUtil.valueSnapshotter())
     }
 
     InstantiatingAction.ExceptionHandler<Details> shouldNotFail() {

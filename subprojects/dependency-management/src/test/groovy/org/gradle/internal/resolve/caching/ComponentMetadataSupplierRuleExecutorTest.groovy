@@ -33,8 +33,8 @@ import org.gradle.cache.CacheDecorator
 import org.gradle.cache.CacheRepository
 import org.gradle.cache.PersistentCache
 import org.gradle.cache.PersistentIndexedCache
-import org.gradle.internal.reflect.DefaultConfigurableRule
-import org.gradle.internal.reflect.InstantiatingAction
+import org.gradle.internal.action.DefaultConfigurableRule
+import org.gradle.internal.action.InstantiatingAction
 import org.gradle.internal.serialize.Serializer
 import org.gradle.internal.service.DefaultServiceRegistry
 import org.gradle.util.BuildCommencedTimeProvider
@@ -176,7 +176,8 @@ class ComponentMetadataSupplierRuleExecutorTest extends Specification {
         rule = new InstantiatingAction<>(
             DefaultConfigurableRule.of(ruleClass),
             instantiator,
-            shouldNotFail()
+            shouldNotFail(),
+            TestUtil.valueSnapshotter()
         )
     }
 
