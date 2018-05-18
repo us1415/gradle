@@ -24,9 +24,11 @@ import org.gradle.api.internal.changedetection.state.CachingFileHasher;
 import org.gradle.api.internal.changedetection.state.ClasspathSnapshotter;
 import org.gradle.api.internal.changedetection.state.CrossBuildFileHashCache;
 import org.gradle.api.internal.changedetection.state.DefaultClasspathSnapshotter;
+import org.gradle.api.internal.changedetection.state.DefaultFileCategorizer;
 import org.gradle.api.internal.changedetection.state.DefaultFileSystemMirror;
 import org.gradle.api.internal.changedetection.state.DefaultFileSystemSnapshotter;
 import org.gradle.api.internal.changedetection.state.DefaultGenericFileCollectionSnapshotter;
+import org.gradle.api.internal.changedetection.state.FileCategorizer;
 import org.gradle.api.internal.changedetection.state.FileSystemMirror;
 import org.gradle.api.internal.changedetection.state.FileSystemSnapshotter;
 import org.gradle.api.internal.changedetection.state.GenericFileCollectionSnapshotter;
@@ -47,6 +49,8 @@ import org.gradle.cache.PersistentIndexedCache;
 import org.gradle.cache.internal.CacheRepositoryServices;
 import org.gradle.cache.internal.CacheScopeMapping;
 import org.gradle.cache.internal.CrossBuildInMemoryCacheFactory;
+import org.gradle.cache.internal.DefaultFileContentCacheFactory;
+import org.gradle.cache.internal.FileContentCacheFactory;
 import org.gradle.groovy.scripts.internal.CrossBuildInMemoryCachingScriptClassCache;
 import org.gradle.groovy.scripts.internal.DefaultScriptSourceHasher;
 import org.gradle.groovy.scripts.internal.RegistryAwareClassLoaderHierarchyHasher;
@@ -138,8 +142,12 @@ public class GradleUserHomeScopeServices {
         return new RegistryAwareClassLoaderHierarchyHasher(registry, classLoaderHasher);
     }
 
-    FileSystemMirror createFileSystemMirror(ListenerManager listenerManager, List<CachedJarFileStore> fileStores) {
-        DefaultFileSystemMirror fileSystemMirror = new DefaultFileSystemMirror(fileStores);
+    FileCategorizer createFileCategorizer(List<CachedJarFileStore> fileStores) {
+        return new DefaultFileCategorizer(fileStores);
+    }
+
+    FileSystemMirror createFileSystemMirror(ListenerManager listenerManager, FileCategorizer fileCategorizer) {
+        DefaultFileSystemMirror fileSystemMirror = new DefaultFileSystemMirror(fileCategorizer);
         listenerManager.addListener(fileSystemMirror);
         return fileSystemMirror;
     }
@@ -196,5 +204,9 @@ public class GradleUserHomeScopeServices {
 
     WorkerProcessClassPathProvider createWorkerProcessClassPathProvider(CacheRepository cacheRepository) {
         return new WorkerProcessClassPathProvider(cacheRepository);
+    }
+
+    FileContentCacheFactory createFileContentCacheFactory(ListenerManager listenerManager, FileSystemSnapshotter fileSystemSnapshotter, CacheRepository cacheRepository, InMemoryCacheDecoratorFactory inMemoryCacheDecoratorFactory) {
+        return new DefaultFileContentCacheFactory(listenerManager, fileSystemSnapshotter, cacheRepository, inMemoryCacheDecoratorFactory, null);
     }
 }
