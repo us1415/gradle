@@ -28,6 +28,7 @@ import org.gradle.api.internal.changedetection.state.DefaultFileCategorizer;
 import org.gradle.api.internal.changedetection.state.DefaultFileSystemMirror;
 import org.gradle.api.internal.changedetection.state.DefaultFileSystemSnapshotter;
 import org.gradle.api.internal.changedetection.state.DefaultGenericFileCollectionSnapshotter;
+import org.gradle.api.internal.changedetection.state.DefaultResourceSnapshotterCacheService;
 import org.gradle.api.internal.changedetection.state.FileCategorizer;
 import org.gradle.api.internal.changedetection.state.FileSystemMirror;
 import org.gradle.api.internal.changedetection.state.FileSystemSnapshotter;
@@ -160,9 +161,16 @@ public class GradleUserHomeScopeServices {
         return new DefaultGenericFileCollectionSnapshotter(stringInterner, directoryFileTreeFactory, fileSystemSnapshotter);
     }
 
-    ClasspathHasher createClasspathHasher(StringInterner stringInterner, DirectoryFileTreeFactory directoryFileTreeFactory, TaskHistoryStore store, FileSystemSnapshotter fileSystemSnapshotter) {
-        PersistentIndexedCache<HashCode, HashCode> jarCache = store.createCache("resourceHashesCache", HashCode.class, new HashCodeSerializer(), 400000, true);
-        ClasspathSnapshotter snapshotter = new DefaultClasspathSnapshotter(new ResourceSnapshotterCacheService(jarCache), directoryFileTreeFactory, fileSystemSnapshotter, stringInterner);
+    ResourceSnapshotterCacheService createResourceSnapshotterCacheService(TaskHistoryStore store) {
+        PersistentIndexedCache<HashCode, HashCode> resourceHashesCache = store.createCache("resourceHashesCache", HashCode.class, new HashCodeSerializer(), 400000, true);
+        return new DefaultResourceSnapshotterCacheService(resourceHashesCache);
+    }
+
+    ClasspathSnapshotter createClasspathSnapshotter(ResourceSnapshotterCacheService resourceSnapshotterCacheService, FileSystemSnapshotter fileSystemSnapshotter, DirectoryFileTreeFactory directoryFileTreeFactory, StringInterner stringInterner) {
+        return new DefaultClasspathSnapshotter(resourceSnapshotterCacheService, directoryFileTreeFactory, fileSystemSnapshotter, stringInterner);
+    }
+
+    ClasspathHasher createClasspathHasher(ClasspathSnapshotter snapshotter) {
         return new DefaultClasspathHasher(snapshotter);
     }
 
