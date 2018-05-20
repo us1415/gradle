@@ -18,6 +18,7 @@ package org.gradle.play.integtest.samples
 
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 import org.gradle.integtests.fixtures.Sample
+import org.gradle.api.tasks.compile.CompilerReuseFixture
 import org.gradle.test.fixtures.archive.ArchiveTestFixture
 import org.gradle.test.fixtures.archive.JarTestFixture
 import org.gradle.test.fixtures.archive.TarTestFixture
@@ -34,6 +35,10 @@ class UserGuidePlaySamplesIntegrationTest extends AbstractIntegrationSpec {
     @Rule Sample customAssetsPlaySample = new Sample(temporaryFolder, "play/custom-assets")
     @Rule Sample play24Sample = new Sample(temporaryFolder, "play/play-2.4")
     @Rule Sample play26Sample = new Sample(temporaryFolder, "play/play-2.6")
+
+    def setup() {
+        CompilerReuseFixture.enableCompilerReuse(executer)
+    }
 
     def "sourcesets sample is buildable" () {
         when:
