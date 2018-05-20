@@ -16,6 +16,8 @@
 
 package org.gradle.api.internal.changedetection.state;
 
+import org.gradle.api.internal.changedetection.mirror.FileSystemCache;
+import org.gradle.api.internal.changedetection.mirror.FileSystemNode;
 import org.gradle.api.internal.tasks.execution.TaskOutputChangesListener;
 import org.gradle.initialization.RootBuildLifecycleListener;
 import org.gradle.internal.classpath.CachedJarFileStore;
@@ -32,15 +34,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * See {@link DefaultFileSystemSnapshotter} for some more details
  */
 public class DefaultFileSystemMirror implements FileSystemMirror, TaskOutputChangesListener, RootBuildLifecycleListener {
+
+    private final FileSystemCache fs = new FileSystemCache();
     // Maps from interned absolute path for a file to known details for the file.
-    private final Map<String, FileSnapshot> files = new ConcurrentHashMap<String, FileSnapshot>();
-    private final Map<String, FileSnapshot> cacheFiles = new ConcurrentHashMap<String, FileSnapshot>();
+    private final Map<FileSystemNode, FileSnapshot> files = new ConcurrentHashMap<FileSystemNode, FileSnapshot>();
+    private final Map<FileSystemNode, FileSnapshot> cacheFiles = new ConcurrentHashMap<FileSystemNode, FileSnapshot>();
     // Maps from interned absolute path for a directory to known details for the directory.
-    private final Map<String, FileTreeSnapshot> trees = new ConcurrentHashMap<String, FileTreeSnapshot>();
-    private final Map<String, FileTreeSnapshot> cacheTrees = new ConcurrentHashMap<String, FileTreeSnapshot>();
+    private final Map<FileSystemNode, FileTreeSnapshot> trees = new ConcurrentHashMap<FileSystemNode, FileTreeSnapshot>();
+    private final Map<FileSystemNode, FileTreeSnapshot> cacheTrees = new ConcurrentHashMap<FileSystemNode, FileTreeSnapshot>();
     // Maps from interned absolute path to a snapshot
-    private final Map<String, Snapshot> snapshots = new ConcurrentHashMap<String, Snapshot>();
-    private final Map<String, Snapshot> cacheSnapshots = new ConcurrentHashMap<String, Snapshot>();
+    private final Map<FileSystemNode, Snapshot> snapshots = new ConcurrentHashMap<FileSystemNode, Snapshot>();
+    private final Map<FileSystemNode, Snapshot> cacheSnapshots = new ConcurrentHashMap<FileSystemNode, Snapshot>();
     private final FileHierarchySet cachedDirectories;
 
     public DefaultFileSystemMirror(List<CachedJarFileStore> fileStores) {
@@ -59,18 +63,18 @@ public class DefaultFileSystemMirror implements FileSystemMirror, TaskOutputChan
         // Could potentially also look whether we have the details for an ancestor directory tree
         // Could possibly infer that the path refers to a directory, if we have details for a descendant path (and it's not a missing file)
         if (cachedDirectories.contains(path)) {
-            return cacheFiles.get(path);
+            return cacheFiles.get(fs.getOrCreate(path));
         } else {
-            return files.get(path);
+            return files.get(fs.getOrCreate(path));
         }
     }
 
     @Override
     public void putFile(FileSnapshot file) {
         if (cachedDirectories.contains(file.getPath())) {
-            cacheFiles.put(file.getPath(), file);
+            cacheFiles.put(fs.getOrCreate(file.getPath()), file);
         } else {
-            files.put(file.getPath(), file);
+            files.put(fs.getOrCreate(file.getPath()), file);
         }
     }
 
@@ -78,18 +82,18 @@ public class DefaultFileSystemMirror implements FileSystemMirror, TaskOutputChan
     @Override
     public Snapshot getContent(String path) {
         if (cachedDirectories.contains(path)) {
-            return cacheSnapshots.get(path);
+            return cacheSnapshots.get(fs.getOrCreate(path));
         } else {
-            return snapshots.get(path);
+            return snapshots.get(fs.getOrCreate(path));
         }
     }
 
     @Override
     public void putContent(String path, Snapshot snapshot) {
         if (cachedDirectories.contains(path)) {
-            cacheSnapshots.put(path, snapshot);
+            cacheSnapshots.put(fs.getOrCreate(path), snapshot);
         } else {
-            snapshots.put(path, snapshot);
+            snapshots.put(fs.getOrCreate(path), snapshot);
         }
     }
 
@@ -99,18 +103,18 @@ public class DefaultFileSystemMirror implements FileSystemMirror, TaskOutputChan
         // Could potentially also look whether we have the details for an ancestor directory tree
         // Could possibly also short-circuit some scanning if we have details for some sub trees
         if (cachedDirectories.contains(path)) {
-            return cacheTrees.get(path);
+            return cacheTrees.get(fs.getOrCreate(path));
         } else {
-            return trees.get(path);
+            return trees.get(fs.getOrCreate(path));
         }
     }
 
     @Override
     public void putDirectory(FileTreeSnapshot directory) {
         if (cachedDirectories.contains(directory.getPath())) {
-            cacheTrees.put(directory.getPath(), directory);
+            cacheTrees.put(fs.getOrCreate(directory.getPath()), directory);
         } else {
-            trees.put(directory.getPath(), directory);
+            trees.put(fs.getOrCreate(directory.getPath()), directory);
         }
     }
 
