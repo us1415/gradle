@@ -17,8 +17,10 @@
 package org.gradle.api.internal.changedetection.state;
 
 import net.rubygrapefruit.platform.ThreadSafe;
+import org.gradle.api.internal.changedetection.mirror.FileSystemNode;
 
 import javax.annotation.Nullable;
+import java.io.File;
 
 /**
  * Maintains an in-memory mirror of the state of the filesystem.
@@ -38,7 +40,14 @@ public interface FileSystemMirror {
     void putContent(String path, Snapshot snapshot);
 
     @Nullable
+    FileContentSnapshot getContentSnapshot(FileSystemNode node);
+
+    void putContentSnapshot(FileSystemNode node, FileContentSnapshot content);
+
+    @Nullable
     FileTreeSnapshot getDirectoryTree(String path);
 
     void putDirectory(FileTreeSnapshot directory);
+
+    FileSystemNode visitTree(File dir, FileSystemNode.Visitor visitor);
 }

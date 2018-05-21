@@ -20,6 +20,9 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 
 import javax.annotation.Nullable;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Map;
 
 public class DefaultFileSystemNode implements FileSystemNode {
     private final BiMap<String, FileSystemNode> children = HashBiMap.create();
@@ -44,20 +47,28 @@ public class DefaultFileSystemNode implements FileSystemNode {
         if (current == path.length) {
             return this;
         }
-        String currentPath = path[current];
-        FileSystemNode child = children.get(currentPath);
-        if (child == null) {
-            child = new DefaultFileSystemNode(this);
-            children.put(currentPath, child);
-        }
+        FileSystemNode child = add(path[current]);
         return child.add(path, current + 1);
     }
 
     @Override
-    public void visit(Visitor visitor) {
-        visitor.visitNode(this);
-        for (FileSystemNode child : children.values()) {
-            child.visit(visitor);
+    public FileSystemNode add(String path) {
+        FileSystemNode child = children.get(path);
+        if (child == null) {
+            child = new DefaultFileSystemNode(this);
+            children.put(path, child);
+        }
+        return child;
+    }
+
+    @Override
+    public void visit(@Nullable String path, Visitor visitor) {
+        VisitAction visitAction = visitor.visitNode(path, this);
+        if (visitAction == VisitAction.SKIP) {
+            return;
+        }
+        for (Map.Entry<String, FileSystemNode> entry : children.entrySet()) {
+            entry.getValue().visit(entry.getKey(), visitor);
         }
     }
 
@@ -83,5 +94,16 @@ public class DefaultFileSystemNode implements FileSystemNode {
             builder.append(parent.getChildren().inverse().get(this));
         }
         return builder.toString();
+    }
+
+    @Override
+    public String[] getSegments(FileSystemNode startDir) {
+        Deque<String> path = new ArrayDeque<String>();
+        FileSystemNode current = this;
+        while (current != startDir) {
+            path.addFirst(current.getParent().getChildren().inverse().get(current));
+            current = current.getParent();
+        }
+        return path.toArray(new String[0]);
     }
 }

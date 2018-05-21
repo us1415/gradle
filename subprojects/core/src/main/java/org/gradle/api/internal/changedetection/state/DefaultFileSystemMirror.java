@@ -45,6 +45,8 @@ public class DefaultFileSystemMirror implements FileSystemMirror, TaskOutputChan
     // Maps from interned absolute path to a snapshot
     private final Map<FileSystemNode, Snapshot> snapshots = new ConcurrentHashMap<FileSystemNode, Snapshot>();
     private final Map<FileSystemNode, Snapshot> cacheSnapshots = new ConcurrentHashMap<FileSystemNode, Snapshot>();
+    private final Map<FileSystemNode, FileContentSnapshot> contentSnapshots = new ConcurrentHashMap<FileSystemNode, FileContentSnapshot>();
+
     private final FileHierarchySet cachedDirectories;
 
     public DefaultFileSystemMirror(List<CachedJarFileStore> fileStores) {
@@ -99,6 +101,17 @@ public class DefaultFileSystemMirror implements FileSystemMirror, TaskOutputChan
 
     @Nullable
     @Override
+    public FileContentSnapshot getContentSnapshot(FileSystemNode node) {
+        return contentSnapshots.get(node);
+    }
+
+    @Override
+    public void putContentSnapshot(FileSystemNode node, FileContentSnapshot content) {
+        contentSnapshots.put(node, content);
+    }
+
+    @Nullable
+    @Override
     public FileTreeSnapshot getDirectoryTree(String path) {
         // Could potentially also look whether we have the details for an ancestor directory tree
         // Could possibly also short-circuit some scanning if we have details for some sub trees
@@ -116,6 +129,11 @@ public class DefaultFileSystemMirror implements FileSystemMirror, TaskOutputChan
         } else {
             trees.put(fs.getOrCreate(directory.getPath()), directory);
         }
+    }
+
+    @Override
+    public FileSystemNode visitTree(File dir, FileSystemNode.Visitor visitor) {
+        return fs.addTree(dir, visitor);
     }
 
     @Override
@@ -140,5 +158,6 @@ public class DefaultFileSystemMirror implements FileSystemMirror, TaskOutputChan
         cacheTrees.clear();
         snapshots.clear();
         cacheSnapshots.clear();
+        contentSnapshots.clear();
     }
 }

@@ -25,14 +25,21 @@ public interface FileSystemNode {
     @Nullable
     FileSystemNode getParent();
     FileSystemNode add(String[] path, int current);
-    void visit(Visitor visitor);
+    FileSystemNode add(String path);
+    void visit(@Nullable String path, Visitor visitor);
 
     @Nullable
     FileSystemNode getAt(String[] pathSegments, int current);
 
     String getPath();
 
+    String[] getSegments(FileSystemNode startDir);
+
+    enum VisitAction {
+        CONTINUE, SKIP
+    }
+
     interface Visitor {
-        void visitNode(FileSystemNode directory);
+        VisitAction visitNode(@Nullable String path, FileSystemNode node);
     }
 }

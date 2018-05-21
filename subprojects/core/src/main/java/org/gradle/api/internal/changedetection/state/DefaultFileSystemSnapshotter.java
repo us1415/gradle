@@ -18,13 +18,16 @@ package org.gradle.api.internal.changedetection.state;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
 import org.gradle.api.file.FileTreeElement;
 import org.gradle.api.file.FileVisitDetails;
 import org.gradle.api.file.FileVisitor;
 import org.gradle.api.file.RelativePath;
 import org.gradle.api.internal.cache.StringInterner;
+import org.gradle.api.internal.changedetection.mirror.FileSystemNode;
 import org.gradle.api.internal.file.FileTreeInternal;
 import org.gradle.api.internal.file.collections.DirectoryFileTree;
 import org.gradle.api.internal.file.collections.DirectoryFileTreeFactory;
@@ -42,6 +45,7 @@ import org.gradle.internal.hash.HashCode;
 import org.gradle.internal.nativeintegration.filesystem.FileSystem;
 import org.gradle.normalization.internal.InputNormalizationStrategy;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.util.Collection;
 import java.util.List;
@@ -138,7 +142,7 @@ public class DefaultFileSystemSnapshotter implements FileSystemSnapshotter {
             public FileTreeSnapshot create() {
                 FileTreeSnapshot snapshot = fileSystemMirror.getDirectoryTree(path);
                 if (snapshot == null) {
-                    return snapshotAndCache(directoryFileTreeFactory.create(dir));
+                    return snapshotAndCache(dir);
                 } else {
                     return snapshot;
                 }
@@ -171,7 +175,7 @@ public class DefaultFileSystemSnapshotter implements FileSystemSnapshotter {
             public FileTreeSnapshot create() {
                 FileTreeSnapshot snapshot = fileSystemMirror.getDirectoryTree(path);
                 if (snapshot == null) {
-                    return snapshotAndCache(dirTree);
+                    return snapshotAndCache(dirTree.getDir());
                 } else {
                     return snapshot;
                 }
@@ -186,14 +190,72 @@ public class DefaultFileSystemSnapshotter implements FileSystemSnapshotter {
         return elements;
     }
 
-    private FileTreeSnapshot snapshotAndCache(DirectoryFileTree directoryTree) {
-        String path = internPath(directoryTree.getDir());
-        List<FileSnapshot> elements = Lists.newArrayList();
-        directoryTree.visit(new FileVisitorImpl(elements));
-        ImmutableList<FileSnapshot> descendants = ImmutableList.copyOf(elements);
-        DirectoryTreeDetails snapshot = new DirectoryTreeDetails(path, descendants);
-        fileSystemMirror.putDirectory(snapshot);
-        return snapshot;
+    private FileTreeSnapshot snapshotAndCache(File dir) {
+        final Multimap<FileSystemNode, String> tree = HashMultimap.create();
+        final ImmutableList.Builder<FileSnapshot> snapshots = ImmutableList.builder();
+        final FileSystemNode startDir = fileSystemMirror.visitTree(dir, new FileSystemNode.Visitor() {
+            @Override
+            public FileSystemNode.VisitAction visitNode(@Nonnull String path, @Nonnull FileSystemNode node) {
+                tree.put(node.getParent(), path);
+                return FileSystemNode.VisitAction.CONTINUE;
+            }
+        });
+        String absoluteRootPath = dir.getAbsolutePath();
+        startDir.visit(null, new FileSystemNode.Visitor() {
+            @Override
+            public FileSystemNode.VisitAction visitNode(String path, FileSystemNode node) {
+                if (path == null) {
+                    return FileSystemNode.VisitAction.CONTINUE;
+                }
+                if (!tree.get(node.getParent()).contains(path)) {
+                    return FileSystemNode.VisitAction.SKIP;
+                }
+
+                FileContentSnapshot contentSnapshot = fileSystemMirror.getContentSnapshot(node);
+                if (contentSnapshot == null) {
+                    File file = new File(node.getPath());
+                    FileMetadataSnapshot stat = fileSystem.stat(file);
+                    contentSnapshot = snapshotSingle(file, stat);
+                    fileSystemMirror.putContentSnapshot(node, contentSnapshot);
+                }
+
+                RelativePath relativePath = new RelativePath(contentSnapshot.getType() != FileType.Directory, node.getSegments(startDir));
+                String absolutePath = node.getPath();
+                FileSnapshot snapshot;
+                switch (contentSnapshot.getType()) {
+                    case Missing:
+                        snapshot = new MissingFileSnapshot(absolutePath, relativePath);
+                        break;
+                    case Directory:
+                        snapshot = new DirectoryFileSnapshot(absolutePath, relativePath, false);
+                        break;
+                    case RegularFile:
+                        snapshot = new RegularFileSnapshot(absolutePath, relativePath, false, contentSnapshot);
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Unrecognized file type: " + contentSnapshot.getType());
+                }
+                snapshots.add(snapshot);
+
+                return FileSystemNode.VisitAction.CONTINUE;
+            }
+        });
+        DirectoryTreeDetails directoryTreeDetails = new DirectoryTreeDetails(absoluteRootPath, snapshots.build());
+        fileSystemMirror.putDirectory(directoryTreeDetails);
+        return directoryTreeDetails;
+    }
+
+    private FileContentSnapshot snapshotSingle(File file, FileMetadataSnapshot stat) {
+        switch (stat.getType()) {
+            case Directory:
+                return DirContentSnapshot.getInstance();
+            case Missing:
+                return MissingFileContentSnapshot.getInstance();
+            case RegularFile:
+                return fileSnapshot(file, stat);
+            default:
+                throw new IllegalArgumentException("Unrecognized file type: " + stat.getType());
+        }
     }
 
     /*

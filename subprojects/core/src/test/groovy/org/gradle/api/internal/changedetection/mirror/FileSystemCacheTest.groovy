@@ -70,7 +70,12 @@ class FileSystemCacheTest extends Specification {
         secondFile << "Second file"
 
         when:
-        def dirNode = fs.addTree(dir)
+        def dirNode = fs.addTree(dir, new FileSystemNode.Visitor() {
+            @Override
+            FileSystemNode.VisitAction visitNode(String path, FileSystemNode node) {
+                return FileSystemNode.VisitAction.CONTINUE
+            }
+        })
         def nodes = getContents(dirNode)
 
         then:
@@ -80,11 +85,12 @@ class FileSystemCacheTest extends Specification {
 
     List<String> getContents(FileSystemNode root) {
         def nodes = []
-        root.visit(new FileSystemNode.Visitor() {
+        root.visit(null, new FileSystemNode.Visitor() {
             @Override
-            void visitNode(FileSystemNode node) {
+            FileSystemNode.VisitAction visitNode(String path, FileSystemNode node) {
                 println "Node: ${node.path}"
                 nodes << node.path
+                FileSystemNode.VisitAction.CONTINUE
             }
         })
         nodes

@@ -22,11 +22,13 @@ import org.gradle.api.UncheckedIOException;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.EnumSet;
 
 @SuppressWarnings("Since15")
 public class FileSystemCache {
@@ -39,10 +41,10 @@ public class FileSystemCache {
         return root.add(pathSegments, 0);
     }
 
-    public FileSystemNode addTree(File file) {
+    public FileSystemNode addTree(File file, final FileSystemNode.Visitor visitor) {
         final FileSystemNode rootDir = addNode(file);
         try {
-            Files.walkFileTree(file.toPath(), new FileVisitor<Path>() {
+            Files.walkFileTree(file.toPath(), EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, new FileVisitor<Path>() {
                 private FileSystemNode currentPos;
 
                 @Override
@@ -52,18 +54,17 @@ public class FileSystemCache {
                         return FileVisitResult.CONTINUE;
                     }
                     String dirName = dir.getFileName().toString();
-                    FileSystemNode child = currentPos.getChildren().get(dirName);
-                    if (child == null) {
-                        child = new DefaultFileSystemNode(currentPos);
-                        currentPos.getChildren().put(dirName, child);
-                    }
+                    FileSystemNode child = currentPos.add(dirName);
                     currentPos = child;
+                    visitor.visitNode(dirName, child);
                     return FileVisitResult.CONTINUE;
                 }
 
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    currentPos.getChildren().put(file.getFileName().toString(), new DefaultFileSystemNode(currentPos));
+                    String fileName = file.getFileName().toString();
+                    FileSystemNode child = currentPos.add(fileName);
+                    visitor.visitNode(fileName, child);
                     return FileVisitResult.CONTINUE;
                 }
 
