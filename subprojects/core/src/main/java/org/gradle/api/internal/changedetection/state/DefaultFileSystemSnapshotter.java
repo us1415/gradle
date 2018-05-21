@@ -45,7 +45,6 @@ import org.gradle.internal.hash.HashCode;
 import org.gradle.internal.nativeintegration.filesystem.FileSystem;
 import org.gradle.normalization.internal.InputNormalizationStrategy;
 
-import javax.annotation.Nonnull;
 import java.io.File;
 import java.util.Collection;
 import java.util.List;
@@ -195,12 +194,12 @@ public class DefaultFileSystemSnapshotter implements FileSystemSnapshotter {
         final ImmutableList.Builder<FileSnapshot> snapshots = ImmutableList.builder();
         final FileSystemNode startDir = fileSystemMirror.visitTree(dir, new FileSystemNode.Visitor() {
             @Override
-            public FileSystemNode.VisitAction visitNode(@Nonnull String path, @Nonnull FileSystemNode node) {
+            public FileSystemNode.VisitAction visitNode(String path, FileSystemNode node) {
                 tree.put(node.getParent(), path);
                 return FileSystemNode.VisitAction.CONTINUE;
             }
         });
-        String absoluteRootPath = dir.getAbsolutePath();
+        String absoluteRootPath = stringInterner.intern(dir.getAbsolutePath());
         startDir.visit(null, new FileSystemNode.Visitor() {
             @Override
             public FileSystemNode.VisitAction visitNode(String path, FileSystemNode node) {
@@ -220,7 +219,7 @@ public class DefaultFileSystemSnapshotter implements FileSystemSnapshotter {
                 }
 
                 RelativePath relativePath = new RelativePath(contentSnapshot.getType() != FileType.Directory, node.getSegments(startDir));
-                String absolutePath = node.getPath();
+                String absolutePath = stringInterner.intern(node.getPath());
                 FileSnapshot snapshot;
                 switch (contentSnapshot.getType()) {
                     case Missing:

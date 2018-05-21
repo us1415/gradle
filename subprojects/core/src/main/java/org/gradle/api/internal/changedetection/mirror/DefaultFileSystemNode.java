@@ -27,6 +27,7 @@ import java.util.Map;
 public class DefaultFileSystemNode implements FileSystemNode {
     private final BiMap<String, FileSystemNode> children = HashBiMap.create();
     private final FileSystemNode parent;
+    private String actualPath;
 
     public DefaultFileSystemNode(@Nullable FileSystemNode parent) {
         this.parent = parent;
@@ -87,13 +88,16 @@ public class DefaultFileSystemNode implements FileSystemNode {
 
     @Override
     public String getPath() {
-        StringBuilder builder = new StringBuilder();
-        if (parent != null) {
-            builder.append(parent.getPath());
-            builder.append("/");
-            builder.append(parent.getChildren().inverse().get(this));
+        if (actualPath == null) {
+            StringBuilder builder = new StringBuilder();
+            if (parent != null) {
+                builder.append(parent.getPath());
+                builder.append("/");
+                builder.append(parent.getChildren().inverse().get(this));
+            }
+            actualPath = builder.toString();
         }
-        return builder.toString();
+        return actualPath;
     }
 
     @Override
