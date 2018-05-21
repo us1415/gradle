@@ -143,6 +143,7 @@ public class DefaultFileSystemMirror implements FileSystemMirror, TaskOutputChan
         files.clear();
         trees.clear();
         snapshots.clear();
+        contentSnapshots.clear();
     }
 
     @Override
