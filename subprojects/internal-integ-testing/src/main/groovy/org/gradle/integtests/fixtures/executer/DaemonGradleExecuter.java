@@ -49,7 +49,7 @@ public class DaemonGradleExecuter extends NoDaemonGradleExecuter {
     @Override
     protected List<String> getAllArgs() {
         List<String> args = new ArrayList<String>(super.getAllArgs());
-        if(!isQuiet() && isAllowExtraLogging()) {
+        if (!isQuiet() && isAllowExtraLogging()) {
             if (!containsAny(args, asList("-i", "--info", "-d", "--debug", "-w", "--warn", "-q", "--quiet"))) {
                 args.add(0, "-i");
             }
@@ -83,10 +83,17 @@ public class DaemonGradleExecuter extends NoDaemonGradleExecuter {
 
     @Override
     protected void transformInvocation(GradleInvocation invocation) {
+        java9PlusNotSupportSettingEnvironmentVariables(invocation);
         super.transformInvocation(invocation);
 
         if (!noExplicitNativeServicesDir) {
             invocation.environmentVars.put(NativeServices.NATIVE_DIR_OVERRIDE, buildContext.getNativeServicesDir().getAbsolutePath());
+        }
+    }
+
+    private void java9PlusNotSupportSettingEnvironmentVariables(GradleInvocation invocation) {
+        if (JavaVersion.current().isJava9Compatible() && !invocation.environmentVars.isEmpty()) {
+            throw new IllegalStateException("Setting environment variables are not supported by Java 9+ daemon!");
         }
     }
 }

@@ -26,11 +26,13 @@ import org.gradle.test.fixtures.server.http.HttpServer
 import org.gradle.test.fixtures.server.http.MavenHttpModule
 import org.gradle.test.fixtures.server.http.MavenHttpRepository
 import org.gradle.test.fixtures.server.http.PomHttpArtifact
+import org.gradle.util.Requires
 import org.gradle.util.SetSystemProperties
+import org.gradle.util.TestPrecondition
 import org.junit.Rule
-import spock.lang.IgnoreIf
 import spock.lang.Issue
 
+@Requires(adhoc = { TestPrecondition.JDK8_OR_EARLIER.fulfilled || GradleContextualExecuter.noDaemon })
 class MavenConversionIntegrationTest extends AbstractIntegrationSpec {
 
     @Rule
@@ -268,7 +270,6 @@ it.exclude group: '*', module: 'badArtifact'
         file("build/libs/util-2.5.jar").exists()
     }
 
-    @IgnoreIf({ GradleContextualExecuter.embedded })
     @Issue("GRADLE-2872")
     def "expandProperties"() {
         setup:
