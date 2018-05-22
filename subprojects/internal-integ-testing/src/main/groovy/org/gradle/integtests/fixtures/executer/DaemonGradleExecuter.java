@@ -42,6 +42,14 @@ public class DaemonGradleExecuter extends NoDaemonGradleExecuter {
     }
 
     @Override
+    public void assertCanExecute() throws AssertionError {
+        super.assertCanExecute();
+        if (JavaVersion.current().isJava9Compatible() && !environmentVars.isEmpty()) {
+            throw new IllegalStateException("Setting environment variables are not supported by Java 9+ daemon! Env: " + environmentVars);
+        }
+    }
+
+    @Override
     protected void validateDaemonVisibility() {
         // Ignore. Should really ignore only when daemon has not been explicitly enabled or disabled
     }
@@ -83,7 +91,6 @@ public class DaemonGradleExecuter extends NoDaemonGradleExecuter {
 
     @Override
     protected void transformInvocation(GradleInvocation invocation) {
-        java9PlusNotSupportSettingEnvironmentVariables(invocation);
         super.transformInvocation(invocation);
 
         if (!noExplicitNativeServicesDir) {
@@ -91,9 +98,4 @@ public class DaemonGradleExecuter extends NoDaemonGradleExecuter {
         }
     }
 
-    private void java9PlusNotSupportSettingEnvironmentVariables(GradleInvocation invocation) {
-        if (JavaVersion.current().isJava9Compatible() && !invocation.environmentVars.isEmpty()) {
-            throw new IllegalStateException("Setting environment variables are not supported by Java 9+ daemon!");
-        }
-    }
 }

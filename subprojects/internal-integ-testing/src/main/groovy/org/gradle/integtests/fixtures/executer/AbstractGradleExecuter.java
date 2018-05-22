@@ -135,7 +135,7 @@ public abstract class AbstractGradleExecuter implements GradleExecuter {
     private boolean taskList;
     private boolean dependencyList;
     private boolean searchUpwards;
-    private Map<String, String> environmentVars = new HashMap<String, String>();
+    protected Map<String, String> environmentVars = new HashMap<String, String>();
     private List<File> initScripts = new ArrayList<File>();
     private String executable;
     private TestFile gradleUserHomeDir;
