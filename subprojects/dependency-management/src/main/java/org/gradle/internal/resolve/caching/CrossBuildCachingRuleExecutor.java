@@ -24,6 +24,7 @@ import org.gradle.api.internal.changedetection.state.InMemoryCacheDecoratorFacto
 import org.gradle.api.internal.changedetection.state.SnapshotSerializer;
 import org.gradle.api.internal.changedetection.state.ValueSnapshot;
 import org.gradle.api.internal.changedetection.state.ValueSnapshotter;
+import org.gradle.api.internal.changedetection.state.isolation.Isolatable;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.cache.CacheRepository;
@@ -109,13 +110,13 @@ public class CrossBuildCachingRuleExecutor<KEY, DETAILS, RESULT> implements Cach
         List<Object> toBeSnapshotted = Lists.newArrayListWithExpectedSize(4);
         toBeSnapshotted.add(ketToSnapshottable.transform(key));
         Class<? extends Action<DETAILS>> ruleClass = rule.getRuleClass();
-        Object[] ruleParams = rule.getRuleParams();
+        Isolatable<Object[]> ruleParams = rule.getRuleParams();
 
         toBeSnapshotted.add(ruleClass);
         toBeSnapshotted.add(ruleParams);
         Instantiator instantiator = action.getInstantiator();
         if (instantiator instanceof DependencyInjectingInstantiator) {
-            toBeSnapshotted.addAll(((DependencyInjectingInstantiator) instantiator).identifyInjectedServices(ruleClass, ruleParams));
+            toBeSnapshotted.addAll(((DependencyInjectingInstantiator) instantiator).identifyInjectedServices(ruleClass, ruleParams.isolate()));
         }
         final ValueSnapshot snapshot = snapshotter.snapshot(toBeSnapshotted);
         CachedEntry<RESULT> entry = store.get(snapshot);

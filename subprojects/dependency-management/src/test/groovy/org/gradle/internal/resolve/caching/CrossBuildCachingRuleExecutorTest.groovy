@@ -190,13 +190,13 @@ class CrossBuildCachingRuleExecutorTest extends Specification {
     void withToUpperCaseRule() {
         rule = new InstantiatingAction<Details>(DefaultConfigurableRule.of(
             ToUpperCase
-        ), TestUtil.instantiatorFactory().decorate(), shouldNotFail(), TestUtil.valueSnapshotter())
+        ), TestUtil.instantiatorFactory().decorate(), shouldNotFail())
     }
 
     void withNonCacheableToUpperCaseRule() {
         rule = new InstantiatingAction<Details>(DefaultConfigurableRule.of(
             ToUpperCaseNotCached
-        ), TestUtil.instantiatorFactory().decorate(), shouldNotFail(), TestUtil.valueSnapshotter())
+        ), TestUtil.instantiatorFactory().decorate(), shouldNotFail())
     }
 
     InstantiatingAction.ExceptionHandler<Details> shouldNotFail() {

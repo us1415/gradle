@@ -176,8 +176,7 @@ class ComponentMetadataSupplierRuleExecutorTest extends Specification {
         rule = new InstantiatingAction<>(
             DefaultConfigurableRule.of(ruleClass),
             instantiator,
-            shouldNotFail(),
-            TestUtil.valueSnapshotter()
+            shouldNotFail()
         )
     }
 
